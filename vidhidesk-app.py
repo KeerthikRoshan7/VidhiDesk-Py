@@ -135,12 +135,13 @@ def get_ai_model():
         return None
     try:
         genai.configure(api_key=API_KEY)
-        # Using a more standard model identifier to avoid the 404 error
+        # Using the standard model string with version 0.8.8+ ensures v1 endpoint usage
         return genai.GenerativeModel('gemini-1.5-flash')
     except Exception as e:
         st.error(f"Failed to initialize AI: {e}")
         return None
 
+# Attempt to initialize the model
 model = get_ai_model()
 
 # --- Router Components ---
@@ -227,11 +228,11 @@ def main_app():
                     with st.spinner("Analyzing Legal Context..."):
                         try:
                             context = f"Student Profile: {st.session_state.profile_data['year']} year at {st.session_state.profile_data['inst']}. Tone: {tone}. Difficulty: {difficulty}."
+                            # Request AI response
                             ai_response = model.generate_content(f"{context} \n\n Explain this legal concept: {prompt}")
                             response = ai_response.text
                         except Exception as e:
-                            # Fallback if specific model name is rejected
-                            response = f"An error occurred: {str(e)}. Tip: Try updating the google-generativeai package."
+                            response = f"An error occurred: {str(e)}. Tip: Try re-deploying to refresh the package cache."
                 
                 st.markdown(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
