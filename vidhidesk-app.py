@@ -2,6 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import time
 import uuid
+import hashlib
 
 # --- CONFIGURATION & SETUP ---
 st.set_page_config(
@@ -53,13 +54,6 @@ st.markdown("""
         box-shadow: 0 6px 15px rgba(124, 77, 255, 0.5);
         border-color: #B388FF;
     }
-    
-    /* Secondary/Ghost Buttons (if any) */
-    button[kind="secondary"] {
-        background-color: transparent;
-        border: 1px solid #BB86FC;
-        color: #BB86FC;
-    }
 
     /* Input Fields - Dark Grey with Purple Borders */
     .stTextInput > div > div > input, 
@@ -75,12 +69,6 @@ st.markdown("""
         box-shadow: 0 0 5px rgba(187, 134, 252, 0.5);
     }
     
-    /* Dropdown Menu Items */
-    ul[data-testid="stSelectboxVirtualDropdown"] {
-        background-color: #1E1E1E;
-        color: white;
-    }
-
     /* Cards/Containers */
     .css-card {
         background-color: #1A1A1A;
@@ -92,33 +80,27 @@ st.markdown("""
         border-left: 4px solid #BB86FC; /* Light Purple Accent */
     }
 
+    /* Chat Messages */
+    .chat-message {
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: flex-start;
+    }
+    .chat-user {
+        background-color: #2D1B4E;
+        border-left: 3px solid #BB86FC;
+    }
+    .chat-bot {
+        background-color: #1A1A1A;
+        border-left: 3px solid #03DAC6;
+    }
+
     /* Headers */
     h1, h2, h3 {
         font-family: 'Helvetica Neue', sans-serif;
-        color: #BB86FC !important; /* Material Design Purple 200 */
-    }
-    
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background-color: #1E1E1E;
-        border-radius: 8px 8px 0 0;
-        color: #9E9E9E;
-        border: none;
-    }
-    .stTabs [data-baseweb="tab"][aria-selected="true"] {
-        background-color: #311B92;
-        color: #FFFFFF;
-        border-bottom: 2px solid #BB86FC;
-    }
-
-    /* Expander */
-    .streamlit-expanderHeader {
-        background-color: #1E1E1E;
-        color: #E0E0E0;
-        border-radius: 8px;
+        color: #BB86FC !important;
     }
     
     /* Animations */
@@ -129,32 +111,78 @@ st.markdown("""
     .animate-fade {
         animation: fadeIn 0.6s ease-out;
     }
-    
-    /* Toast */
-    div[data-baseweb="toast"] {
-        background-color: #311B92;
-        color: white;
-    }
 </style>
 """, unsafe_allow_html=True)
 
-# --- SESSION STATE MANAGEMENT ---
+# --- BACKEND SIMULATION (User Manager) ---
+class UserManager:
+    def __init__(self):
+        # In a real app, this would be a database connection.
+        # Here we use session_state to persist during runtime.
+        if 'db_users' not in st.session_state:
+            st.session_state.db_users = {
+                "admin@law.edu": {
+                    "password": self._hash_password("admin123"),
+                    "name": "Administrator",
+                    "institution": "VidhiDesk HQ",
+                    "year": "Graduate",
+                    "setup_complete": True
+                }
+            }
+
+    def _hash_password(self, password):
+        return hashlib.sha256(password.encode()).hexdigest()
+
+    def register(self, email, password):
+        if email in st.session_state.db_users:
+            return False, "Email already exists."
+        
+        st.session_state.db_users[email] = {
+            "password": self._hash_password(password),
+            "name": "New User",
+            "setup_complete": False
+        }
+        return True, "Registration successful! Please log in."
+
+    def login(self, email, password):
+        user = st.session_state.db_users.get(email)
+        if not user:
+            return False, "User not found."
+        
+        if user["password"] == self._hash_password(password):
+            return True, user
+        else:
+            return False, "Incorrect password."
+
+    def update_profile(self, email, name, institution, year):
+        if email in st.session_state.db_users:
+            st.session_state.db_users[email]["name"] = name
+            st.session_state.db_users[email]["institution"] = institution
+            st.session_state.db_users[email]["year"] = year
+            st.session_state.db_users[email]["setup_complete"] = True
+            return True
+        return False
+
+user_manager = UserManager()
+
+# --- SESSION STATE INITIALIZATION ---
 if 'user' not in st.session_state:
-    st.session_state.user = None # {email, name, institution, year}
+    st.session_state.user = None
 if 'page' not in st.session_state:
     st.session_state.page = 'login'
 if 'spaces' not in st.session_state:
     st.session_state.spaces = {"Research": [], "Paper": [], "Study": []}
 if 'chat_history' not in st.session_state:
-    st.session_state.chat_history = []
-# Check secrets for API key, else fallback to empty
+    st.session_state.chat_history = [] # List of {"role": "user/ai", "content": "..."}
+
+# Check secrets for API key, else fallback
 if 'api_key' not in st.session_state:
     try:
         st.session_state.api_key = st.secrets["GEMINI_API_KEY"]
     except:
         st.session_state.api_key = ""
 
-# --- MOCK DATABASE ---
+# --- CONSTANTS ---
 INSTITUTIONS = [
     "Tamil Nadu National Law University (TNNLU)",
     "National Law School of India University (NLSIU)",
@@ -175,41 +203,23 @@ def set_page(page_name):
 def logout():
     st.session_state.user = None
     st.session_state.page = 'login'
-
-def authenticate(email, password):
-    # Mock authentication
-    if "@" in email and len(password) > 3:
-        return True
-    return False
+    st.session_state.chat_history = []
+    st.rerun()
 
 def get_ai_response(query, tone, difficulty, context="general"):
-    """
-    Interacts with Gemini API.
-    """
     if not st.session_state.api_key:
         return "⚠️ Please enter your Gemini API Key in the sidebar settings or set it in Streamlit Secrets."
     
     genai.configure(api_key=st.session_state.api_key)
     
-    # 1. Dynamically find a working model
-    # This prevents 404 errors by asking the API "what models do I have access to?"
-    target_model_name = "gemini-1.5-flash" # Default fallback
+    # Smart Model Selection
+    target_model_name = "gemini-1.5-flash"
     try:
-        available_models = []
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                available_models.append(m.name)
-        
-        # Priority Logic: Prefer Flash -> Pro -> Flash Legacy -> Pro Legacy
-        if any('gemini-1.5-flash' in m for m in available_models):
-             target_model_name = 'gemini-1.5-flash'
-        elif any('gemini-1.5-pro' in m for m in available_models):
-             target_model_name = 'gemini-1.5-pro'
-        elif len(available_models) > 0:
-             # Pick the first one that looks like a gemini model
-             target_model_name = available_models[0]
-    except Exception:
-        # If list_models fails (e.g. permission issues), we stick to the default fallback
+        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        if any('gemini-1.5-flash' in m for m in available_models): target_model_name = 'gemini-1.5-flash'
+        elif any('gemini-1.5-pro' in m for m in available_models): target_model_name = 'gemini-1.5-pro'
+        elif available_models: target_model_name = available_models[0]
+    except:
         pass
 
     prompt = f"""
@@ -223,7 +233,6 @@ def get_ai_response(query, tone, difficulty, context="general"):
     
     Provide a clear, structured response fitting these constraints. 
     Use markdown formatting (bolding, lists) to make it readable on a dark background.
-    If appropriate, include relevant Case Laws.
     """
     
     try:
@@ -232,12 +241,11 @@ def get_ai_response(query, tone, difficulty, context="general"):
             response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        return f"Error connecting to Gemini ({target_model_name}): {str(e)}"
+        return f"Error connecting to Gemini: {str(e)}"
 
 # --- PAGES ---
 
 def login_page():
-    # Centered Logo/Title
     st.markdown("""
         <div style='text-align: center; margin-top: 50px; margin-bottom: 30px;'>
             <h1 style='font-size: 3.5rem; background: -webkit-linear-gradient(#BB86FC, #6200EA); -webkit-background-clip: text; -webkit-text-fill-color: transparent;'>
@@ -253,32 +261,39 @@ def login_page():
         tab1, tab2 = st.tabs(["Login", "Register"])
         
         with tab1:
-            email = st.text_input("Email", key="login_email", placeholder="student@law.edu")
-            password = st.text_input("Password", type="password", key="login_pass", placeholder="••••••••")
+            email = st.text_input("Email", key="login_email", placeholder="admin@law.edu")
+            password = st.text_input("Password", type="password", key="login_pass", placeholder="admin123")
             st.markdown("<br>", unsafe_allow_html=True)
+            
             if st.button("Log In", use_container_width=True):
-                if authenticate(email, password):
-                    st.session_state.user = {"email": email, "name": "User", "setup_complete": False}
-                    st.session_state.page = "profile_setup"
+                success, result = user_manager.login(email, password)
+                if success:
+                    st.session_state.user = result
+                    st.session_state.user['email'] = email # Ensure email is attached
+                    if not result.get("setup_complete"):
+                        st.session_state.page = "profile_setup"
+                    else:
+                        st.session_state.page = "home"
                     st.rerun()
                 else:
-                    st.error("Invalid credentials")
-            
-            st.markdown("<div style='text-align: center; margin: 15px 0; color: #555;'>— OR —</div>", unsafe_allow_html=True)
-            
-            if st.button("🔵 Continue with Google", use_container_width=True):
-                st.info("Google Auth simulation: Redirecting...")
-                time.sleep(1)
-                st.session_state.user = {"email": "user@gmail.com", "name": "Google User", "setup_complete": False}
-                st.session_state.page = "profile_setup"
-                st.rerun()
+                    st.error(result)
 
         with tab2:
-            st.text_input("New Email", placeholder="student@law.edu")
-            st.text_input("New Password", type="password", placeholder="Create a strong password")
+            new_email = st.text_input("New Email", placeholder="student@law.edu")
+            new_pass = st.text_input("New Password", type="password", placeholder="Create a strong password")
             st.markdown("<br>", unsafe_allow_html=True)
+            
             if st.button("Sign Up", use_container_width=True):
-                st.success("Account created! Please log in.")
+                if len(new_pass) < 6:
+                    st.warning("Password must be at least 6 characters.")
+                elif "@" not in new_email:
+                    st.warning("Please enter a valid email.")
+                else:
+                    success, msg = user_manager.register(new_email, new_pass)
+                    if success:
+                        st.success(msg)
+                    else:
+                        st.error(msg)
         
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -296,10 +311,12 @@ def profile_setup():
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Complete Setup"):
             if full_name and institution:
+                email = st.session_state.user['email']
+                user_manager.update_profile(email, full_name, institution, year)
+                # Update local session user to reflect changes immediately
                 st.session_state.user['name'] = full_name
                 st.session_state.user['institution'] = institution
                 st.session_state.user['year'] = year
-                st.session_state.user['setup_complete'] = True
                 st.session_state.page = "home"
                 st.rerun()
             else:
@@ -310,8 +327,8 @@ def profile_setup():
 def sidebar():
     with st.sidebar:
         st.markdown("<h2 style='color: #BB86FC;'>VidhiDesk</h2>", unsafe_allow_html=True)
-        st.markdown(f"**{st.session_state.user['name']}**")
-        st.caption(f"{st.session_state.user['institution']}")
+        st.markdown(f"**{st.session_state.user.get('name', 'User')}**")
+        st.caption(f"{st.session_state.user.get('institution', 'Law School')}")
         
         st.markdown("---")
         
@@ -320,7 +337,6 @@ def sidebar():
         if st.button("⚙️ Settings", use_container_width=True): set_page("settings")
         
         st.markdown("---")
-        # API Key input
         api_input = st.text_input("Gemini API Key", type="password", value=st.session_state.api_key, help="Leave empty if using Secrets")
         if api_input:
             st.session_state.api_key = api_input
@@ -340,32 +356,60 @@ def home_page():
     with col3:
         target_space = st.selectbox("Save to Space", ["None", "Research", "Paper", "Study"])
 
-    # --- Chat Interface ---
-    st.markdown("<br>", unsafe_allow_html=True)
-    query = st.text_input("Ask about Indian Laws, Acts, or Amendments...", placeholder="e.g., Explain Article 21 of the Indian Constitution")
+    # --- Chat Display ---
+    st.markdown("### Conversation")
     
-    if st.button("Analyze", type="primary"):
-        if query:
-            response = get_ai_response(query, tone, difficulty)
-            
-            # Display Result
+    # Display History
+    for msg in st.session_state.chat_history:
+        if msg["role"] == "user":
             st.markdown(f"""
-            <div class='css-card animate-fade'>
-                <h3 style='color: #BB86FC;'>🏛️ Analysis</h3>
-                <div style='color: #E0E0E0; line-height: 1.6;'>{response}</div>
-            </div>
+                <div class='chat-message chat-user'>
+                    <div><strong>You:</strong><br>{msg['content']}</div>
+                </div>
             """, unsafe_allow_html=True)
-            
-            # Save to Space Logic
-            if target_space != "None":
-                entry = {
-                    "id": str(uuid.uuid4()),
-                    "query": query,
-                    "response": response,
-                    "timestamp": time.strftime("%Y-%m-%d %H:%M")
-                }
-                st.session_state.spaces[target_space].append(entry)
-                st.toast(f"Saved to {target_space} Space!", icon="✅")
+        else:
+            st.markdown(f"""
+                <div class='chat-message chat-bot'>
+                    <div><strong>VidhiDesk:</strong><br>{msg['content']}</div>
+                </div>
+            """, unsafe_allow_html=True)
+
+    # --- Input Area ---
+    st.markdown("<br>", unsafe_allow_html=True)
+    with st.form("chat_form"):
+        col_input, col_btn = st.columns([6,1])
+        with col_input:
+            query = st.text_input("Ask about Indian Laws...", placeholder="e.g., Explain Article 21", label_visibility="collapsed")
+        with col_btn:
+            submitted = st.form_submit_button("Analyze", type="primary")
+
+    if submitted and query:
+        # Add User Message to History
+        st.session_state.chat_history.append({"role": "user", "content": query})
+        
+        # Get AI Response
+        response = get_ai_response(query, tone, difficulty)
+        
+        # Add AI Message to History
+        st.session_state.chat_history.append({"role": "ai", "content": response})
+        
+        # Save to Space Logic
+        if target_space != "None":
+            entry = {
+                "id": str(uuid.uuid4()),
+                "query": query,
+                "response": response,
+                "timestamp": time.strftime("%Y-%m-%d %H:%M")
+            }
+            st.session_state.spaces[target_space].append(entry)
+            st.toast(f"Saved to {target_space} Space!", icon="✅")
+        
+        st.rerun() # Rerun to display new messages
+
+    if st.session_state.chat_history:
+        if st.button("Clear History"):
+            st.session_state.chat_history = []
+            st.rerun()
 
 def spaces_page():
     st.markdown("<h1 class='animate-fade'>My Spaces</h1>", unsafe_allow_html=True)
@@ -375,26 +419,25 @@ def spaces_page():
     def render_space(space_name):
         items = st.session_state.spaces[space_name]
         
-        # AI Insight for the Space
         if items:
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button(f"✨ Generate AI Insights for {space_name}"):
-                combined_text = " ".join([item['query'] for item in items])
-                insight = get_ai_response(f"Provide a high-level summary/insight connecting these legal topics: {combined_text}", "Academic", "Intermediate", context="insight")
-                st.markdown(f"""
-                <div class='css-card' style='border-left-color: #03DAC6;'>
-                    <strong style='color: #03DAC6;'>AI Insight:</strong>
-                    <br>{insight}
-                </div>
-                """, unsafe_allow_html=True)
-        
+            col_a, col_b = st.columns([3,1])
+            with col_a:
+                if st.button(f"✨ Generate Insights for {space_name}", key=f"insight_{space_name}"):
+                    combined_text = " ".join([item['query'] for item in items])
+                    insight = get_ai_response(f"Summarize insights for topics: {combined_text}", "Academic", "Intermediate", context="insight")
+                    st.markdown(f"<div class='css-card' style='border-left-color: #03DAC6;'><strong>AI Insight:</strong><br>{insight}</div>", unsafe_allow_html=True)
+            with col_b:
+                 if st.button(f"🗑️ Clear {space_name}", key=f"clear_{space_name}"):
+                     st.session_state.spaces[space_name] = []
+                     st.rerun()
+
         if not items:
-            st.info(f"Your {space_name} space is empty. Start researching!")
+            st.info(f"Your {space_name} space is empty.")
         else:
             for item in items:
                 with st.expander(f"📄 {item['query']} ({item['timestamp']})"):
                     st.markdown(item['response'])
-                    if st.button("Delete", key=item['id']):
+                    if st.button("Delete Entry", key=item['id']):
                         st.session_state.spaces[space_name].remove(item)
                         st.rerun()
 
@@ -417,4 +460,11 @@ else:
         spaces_page()
     elif st.session_state.page == "settings":
         st.title("Settings")
-        st.markdown("<div class='css-card'>User Preferences and Account Management would go here.</div>", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class='css-card'>
+            <h3>Account Info</h3>
+            <p><strong>Name:</strong> {st.session_state.user.get('name')}</p>
+            <p><strong>Email:</strong> {st.session_state.user.get('email')}</p>
+            <p><strong>Institution:</strong> {st.session_state.user.get('institution')}</p>
+        </div>
+        """, unsafe_allow_html=True)
