@@ -1,288 +1,312 @@
 import streamlit as st
 import google.generativeai as genai
+import time
 import uuid
-from datetime import datetime
 
-# --- Configuration & Theme ---
-st.set_page_config(page_title="VidhiDesk | Dark Hub", page_icon="⚖️", layout="wide")
+# --- CONFIGURATION & SETUP ---
+st.set_page_config(
+    page_title="VidhiDesk | Legal Research Hub",
+    page_icon="⚖️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Custom CSS for Major Black - Minor Purple Aesthetic
+# --- CUSTOM CSS (Beige-Purple Theme, Rounded UI) ---
 st.markdown("""
-    <style>
-    /* Theme Variables */
-    :root {
-        --primary-purple: #8B5CF6;
-        --deep-black: #09090B;
-        --card-bg: #18181B;
-        --text-white: #FAFAFA;
-        --text-muted: #A1A1AA;
-        --border-color: #27272A;
-    }
-
-    /* Global Overrides */
+<style>
+    /* Main Background - Beige */
     .stApp {
-        background-color: var(--deep-black);
-        color: var(--text-white);
-    }
-
-    /* Sidebar - Major Black with Purple Border */
-    section[data-testid="stSidebar"] {
-        background-color: #000000 !important;
-        border-right: 1px solid var(--primary-purple);
+        background-color: #F9F7F2;
+        color: #333333;
     }
     
-    section[data-testid="stSidebar"] .stText, 
-    section[data-testid="stSidebar"] label,
-    section[data-testid="stSidebar"] .stMarkdown p {
-        color: var(--text-white) !important;
+    /* Sidebar - Deep Purple */
+    [data-testid="stSidebar"] {
+        background-color: #2E1A47;
+    }
+    [data-testid="stSidebar"] * {
+        color: #F9F7F2 !important;
     }
 
-    /* Buttons */
-    .stButton>button {
-        background-color: var(--primary-purple) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 12px !important;
-        font-weight: 600 !important;
-        width: 100%;
+    /* Buttons - Purple & Rounded */
+    .stButton > button {
+        background-color: #6A0DAD;
+        color: white;
+        border-radius: 25px;
+        border: none;
+        padding: 10px 24px;
         transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
-    .stButton>button:hover {
-        box-shadow: 0 0 15px var(--primary-purple);
+    .stButton > button:hover {
+        background-color: #8A2BE2;
         transform: translateY(-2px);
     }
 
-    /* Text Inputs & Selectboxes */
-    input, select, textarea, .stSelectbox div[data-baseweb="select"] {
-        background-color: var(--card-bg) !important;
-        color: var(--text-white) !important;
-        border: 1px solid var(--border-color) !important;
-        border-radius: 12px !important;
+    /* Input Fields - Rounded */
+    .stTextInput > div > div > input, .stSelectbox > div > div > div {
+        border-radius: 15px;
+        background-color: #FFFFFF;
+        border: 1px solid #D1C4E9;
     }
 
-    /* Chat Messages */
-    .stChatMessage {
-        background-color: var(--card-bg) !important;
-        border: 1px solid var(--border-color) !important;
-        border-radius: 20px !important;
-        color: var(--text-white) !important;
-    }
-    
-    /* "Spaces" Cards */
-    .space-card {
-        background-color: var(--card-bg);
-        padding: 24px;
+    /* Cards/Containers */
+    .css-card {
+        background-color: #FFFFFF;
+        padding: 20px;
         border-radius: 20px;
-        border: 1px solid var(--border-color);
-        margin-bottom: 16px;
-        transition: border 0.3s ease;
-    }
-    .space-card:hover {
-        border-color: var(--primary-purple);
-    }
-    .space-card h4 {
-        color: var(--text-white) !important;
-        margin-bottom: 8px;
-    }
-    .space-card p {
-        color: var(--text-muted) !important;
-        font-size: 0.85rem;
+        box-shadow: 0 4px 15px rgba(106, 13, 173, 0.1);
+        margin-bottom: 20px;
+        border-left: 5px solid #6A0DAD;
     }
 
     /* Headers */
-    h1, h2, h3, h4, h5 {
-        color: var(--text-white) !important;
-        font-family: 'Inter', sans-serif;
+    h1, h2, h3 {
+        font-family: 'Helvetica Neue', sans-serif;
+        color: #4A148C;
     }
-
-    /* Tab Styling */
-    .stTabs [data-baseweb="tab-list"] {
-        background-color: transparent;
-        gap: 8px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        height: 40px;
-        background-color: var(--card-bg);
-        border-radius: 10px 10px 0 0;
-        color: var(--text-muted);
-    }
-    .stTabs [aria-selected="true"] {
-        color: var(--primary-purple) !important;
-        border-bottom: 2px solid var(--primary-purple) !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-# --- State Management ---
-if "user_authenticated" not in st.session_state:
-    st.session_state.user_authenticated = False
-if "profile_complete" not in st.session_state:
-    st.session_state.profile_complete = False
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "spaces" not in st.session_state:
-    st.session_state.spaces = {
-        "Research": [{"name": "Constitutional Basic Structure", "desc": "Focus on Kesavananda Bharati"}],
-        "Paper": [{"name": "Data Privacy in India", "desc": "Drafting for Law Seminar"}],
-        "Study": [{"name": "Criminal Law II", "desc": "Semester V Prep"}]
-    }
-
-# --- Gemini API Setup ---
-API_KEY = st.secrets.get("GEMINI_API_KEY", "")
-
-def get_ai_model():
-    if not API_KEY:
-        return None
-    try:
-        genai.configure(api_key=API_KEY)
-        # Using the standard model string with version 0.8.8+ ensures v1 endpoint usage
-        return genai.GenerativeModel('gemini-1.5-flash')
-    except Exception as e:
-        st.error(f"Failed to initialize AI: {e}")
-        return None
-
-# Attempt to initialize the model
-model = get_ai_model()
-
-# --- Router Components ---
-
-def login_screen():
-    st.markdown("<h1 style='text-align: center; color: #8B5CF6 !important;'>VidhiDesk</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #A1A1AA;'>The Black-Edition Legal Hub</p>", unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns([1, 1.5, 1])
+    /* Animations */
+    @keyframes fadeIn {
+        0% { opacity: 0; transform: translateY(10px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade {
+        animation: fadeIn 0.8s ease-out;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# --- SESSION STATE MANAGEMENT ---
+if 'user' not in st.session_state:
+    st.session_state.user = None # {email, name, institution, year}
+if 'page' not in st.session_state:
+    st.session_state.page = 'login'
+if 'spaces' not in st.session_state:
+    st.session_state.spaces = {"Research": [], "Paper": [], "Study": []}
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []
+# Check if API key is in secrets, otherwise default to empty
+if 'api_key' not in st.session_state:
+    st.session_state.api_key = st.secrets["GEMINI_API_KEY"] if "GEMINI_API_KEY" in st.secrets else ""
+
+# --- MOCK DATABASE ---
+INSTITUTIONS = [
+    "Tamil Nadu National Law University (TNNLU)",
+    "National Law School of India University (NLSIU)",
+    "NALSAR University of Law",
+    "National Law University, Delhi (NLUD)",
+    "The West Bengal National University of Juridical Sciences (NUJS)",
+    "Symbiosis Law School",
+    "School of Law, Christ University",
+    "M.I.E.T. Engineering College (Tech Law Dept)", 
+    "Dr. Ambedkar Government Law College",
+    "Vel Tech School of Law",
+    # ... In a real app, this list would contain all ~100 institutions
+]
+
+# --- HELPER FUNCTIONS ---
+def set_page(page_name):
+    st.session_state.page = page_name
+
+def logout():
+    st.session_state.user = None
+    st.session_state.page = 'login'
+
+def authenticate(email, password):
+    # Mock authentication
+    if "@" in email and len(password) > 3:
+        return True
+    return False
+
+def get_ai_response(query, tone, difficulty, context="general"):
+    """
+    Interacts with Gemini API.
+    """
+    if not st.session_state.api_key:
+        return "⚠️ Please enter your Gemini API Key in the sidebar settings."
+    
+    genai.configure(api_key=st.session_state.api_key)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    prompt = f"""
+    You are VidhiDesk, an expert Indian legal assistant.
+    User Query: {query}
+    
+    Constraints:
+    1. Tone: {tone}
+    2. Difficulty: {difficulty}
+    3. Context: {context} (If 'bare act', quote the law precisely).
+    
+    Provide a clear, structured response fitting these constraints. 
+    If appropriate, include relevant Case Laws.
+    """
+    
+    try:
+        with st.spinner("Consulting the legal archives..."):
+            response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+# --- PAGES ---
+
+def login_page():
+    st.markdown("<div style='text-align: center; margin-top: 50px;'><h1 style='font-size: 3rem;'>⚖️ VidhiDesk</h1><p>Your AI Legal Research Companion</p></div>", unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1,1,1])
     with col2:
+        st.markdown("<div class='css-card animate-fade'>", unsafe_allow_html=True)
         tab1, tab2 = st.tabs(["Login", "Register"])
+        
         with tab1:
-            st.text_input("Email", placeholder="advocate@vidhidesk.com", key="l_email")
-            st.text_input("Password", type="password", key="l_pass")
-            if st.button("Sign In"):
-                st.session_state.user_authenticated = True
-                st.rerun()
-        with tab2:
-            st.text_input("Full Name", placeholder="e.g. Rahul Sharma", key="r_name")
-            st.text_input("Register Email", key="r_email")
-            st.text_input("Choose Password", type="password", key="r_pass")
-            if st.button("Create Account"):
-                st.session_state.user_authenticated = True
+            email = st.text_input("Email", key="login_email")
+            password = st.text_input("Password", type="password", key="login_pass")
+            if st.button("Log In", use_container_width=True):
+                if authenticate(email, password):
+                    # Mock fetching user profile
+                    st.session_state.user = {"email": email, "name": "User", "setup_complete": False}
+                    st.session_state.page = "profile_setup"
+                    st.rerun()
+                else:
+                    st.error("Invalid credentials")
+            st.markdown("---")
+            if st.button("🔵 Continue with Google", use_container_width=True):
+                st.info("Google Auth simulation: Redirecting...")
+                time.sleep(1)
+                st.session_state.user = {"email": "user@gmail.com", "name": "Google User", "setup_complete": False}
+                st.session_state.page = "profile_setup"
                 st.rerun()
 
-def profile_setup():
-    st.markdown("## 👤 Initialize Legal Profile")
-    with st.container():
-        st.markdown("<div style='background-color:#18181B; padding:30px; border-radius:20px; border:1px solid #27272A;'>", unsafe_allow_html=True)
-        name = st.text_input("Full Name")
-        inst = st.selectbox("Institution", ["Tamil Nadu National Law University (TNNLU)", "NLSIU", "NALSAR", "GNLU", "DU Faculty of Law", "Other"])
-        year = st.select_slider("Year of Study", options=["1st", "2nd", "3rd", "4th", "5th", "LLM", "Research"])
+        with tab2:
+            st.text_input("New Email")
+            st.text_input("New Password", type="password")
+            if st.button("Sign Up", use_container_width=True):
+                st.success("Account created! Please log in.")
         
-        if st.button("Enter the Hub"):
-            if name:
-                st.session_state.profile_data = {"name": name, "inst": inst, "year": year}
-                st.session_state.profile_complete = True
-                st.rerun()
-            else:
-                st.error("Please enter your name.")
         st.markdown("</div>", unsafe_allow_html=True)
 
-def main_app():
-    # Sidebar
+def profile_setup():
+    st.markdown("<div class='animate-fade'>", unsafe_allow_html=True)
+    st.title("Complete Your Profile")
+    st.write("Tell us about your academic background to personalize your experience.")
+    
+    with st.container():
+        st.markdown("<div class='css-card'>", unsafe_allow_html=True)
+        full_name = st.text_input("Full Name")
+        institution = st.selectbox("Institution", INSTITUTIONS)
+        year = st.selectbox("Year of Study", ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year", "LLM/PhD", "Graduate"])
+        
+        if st.button("Complete Setup"):
+            if full_name and institution:
+                st.session_state.user['name'] = full_name
+                st.session_state.user['institution'] = institution
+                st.session_state.user['year'] = year
+                st.session_state.user['setup_complete'] = True
+                st.session_state.page = "home"
+                st.rerun()
+            else:
+                st.warning("Please fill in all fields.")
+        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+def sidebar():
     with st.sidebar:
-        st.markdown(f"<h2 style='color:#8B5CF6 !important;'>⚖️ VidhiDesk</h2>", unsafe_allow_html=True)
-        st.divider()
-        nav = st.radio("NAVIGATION", ["Discovery", "Spaces", "Insights"], label_visibility="collapsed")
-        st.divider()
-        st.write(f"Logged in: **{st.session_state.profile_data['name']}**")
-        if st.button("Log Out"):
-            st.session_state.user_authenticated = False
-            st.rerun()
-
-    if nav == "Discovery":
-        st.markdown("<h2 style='margin-bottom:0;'>Discovery Hub</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='color:#A1A1AA;'>Chat with AI to clarify Acts and Amendments</p>", unsafe_allow_html=True)
+        st.title("VidhiDesk")
+        st.write(f"👤 **{st.session_state.user['name']}**")
+        st.caption(f"{st.session_state.user['institution']}")
         
-        # Search Settings
-        col1, col2 = st.columns(2)
-        with col1:
-            tone = st.selectbox("Tone", ["Informative", "Academic", "Casual"])
-        with col2:
-            difficulty = st.selectbox("Complexity", ["Simple", "Intermediate", "Bare Act"])
-
-        st.divider()
-
-        # Chat display
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
-
-        if prompt := st.chat_input("Ask about IPC Section 302, Article 370..."):
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user"):
-                st.markdown(prompt)
-
-            with st.chat_message("assistant"):
-                if not API_KEY:
-                    response = "⚠️ **API Key Missing**: Please add `GEMINI_API_KEY` to your Streamlit Secrets."
-                elif not model:
-                    response = "❌ **AI Initialization Error**: Check your API key and network connection."
-                else:
-                    with st.spinner("Analyzing Legal Context..."):
-                        try:
-                            context = f"Student Profile: {st.session_state.profile_data['year']} year at {st.session_state.profile_data['inst']}. Tone: {tone}. Difficulty: {difficulty}."
-                            # Request AI response
-                            ai_response = model.generate_content(f"{context} \n\n Explain this legal concept: {prompt}")
-                            response = ai_response.text
-                        except Exception as e:
-                            response = f"An error occurred: {str(e)}. Tip: Try re-deploying to refresh the package cache."
-                
-                st.markdown(response)
-                st.session_state.messages.append({"role": "assistant", "content": response})
-
-    elif nav == "Spaces":
-        st.markdown("## Research Spaces")
-        st.markdown("<p style='color:#A1A1AA;'>Organized clusters of your legal queries</p>", unsafe_allow_html=True)
+        st.markdown("---")
         
-        tabs = st.tabs(["🔍 Research", "📝 Papers", "📚 Study Hub"])
+        if st.button("🏠 Home", use_container_width=True): set_page("home")
+        if st.button("🗂️ Spaces", use_container_width=True): set_page("spaces")
+        if st.button("⚙️ Settings", use_container_width=True): set_page("settings")
         
-        categories = ["Research", "Paper", "Study"]
-        for i, tab in enumerate(tabs):
-            with tab:
-                cat = categories[i]
-                cols = st.columns(2)
-                for idx, space in enumerate(st.session_state.spaces[cat]):
-                    with cols[idx % 2]:
-                        st.markdown(f"""
-                            <div class='space-card'>
-                                <h4>{space['name']}</h4>
-                                <p>{space['desc']}</p>
-                                <div style='color:#8B5CF6; font-size:12px; margin-top:10px;'>✨ AI Insights Active</div>
-                            </div>
-                        """, unsafe_allow_html=True)
-                if st.button(f"+ New {cat} Cluster", key=f"btn_{cat}"):
-                    st.toast(f"New {cat} space initiated...")
+        st.markdown("---")
+        # API Key input for the prototype
+        api_input = st.text_input("Gemini API Key", type="password", value=st.session_state.api_key)
+        if api_input:
+            st.session_state.api_key = api_input
+            
+        st.markdown("---")
+        if st.button("Logout"): logout()
 
-    elif nav == "Insights":
-        p = st.session_state.profile_data
-        st.markdown(f"## {p['name']}'s Research Analytics")
-        
-        col1, col2 = st.columns([1, 1.5])
-        with col1:
-            st.markdown("#### Topic Concentration")
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.write("Constitutional Law")
-            st.progress(0.85)
-            st.write("Criminal Law")
-            st.progress(0.60)
-            st.write("Intellectual Property")
-            st.progress(0.30)
-        
-        with col2:
-            st.markdown("#### Weekly Research Intensity")
-            st.bar_chart([15, 30, 10, 45, 20, 50, 60], color="#8B5CF6")
+def home_page():
+    st.markdown("<h1 class='animate-fade'>Legal Research Assistant</h1>", unsafe_allow_html=True)
+    
+    # --- Control Panel ---
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        tone = st.selectbox("Tone", ["Informative", "Academic", "Casual"])
+    with col2:
+        difficulty = st.selectbox("Difficulty", ["Simple", "Intermediate", "Bare Act"])
+    with col3:
+        target_space = st.selectbox("Save to Space", ["None", "Research", "Paper", "Study"])
 
-# --- Application Entry ---
-if not st.session_state.user_authenticated:
-    login_screen()
-elif not st.session_state.profile_complete:
+    # --- Chat Interface ---
+    st.markdown("<br>", unsafe_allow_html=True)
+    query = st.text_input("Ask about Indian Laws, Acts, or Amendments...", placeholder="e.g., Explain Article 21 of the Indian Constitution")
+    
+    if st.button("Analyze", type="primary"):
+        if query:
+            response = get_ai_response(query, tone, difficulty)
+            
+            # Display Result
+            st.markdown(f"<div class='css-card animate-fade'><h3>🏛️ Analysis</h3>{response}</div>", unsafe_allow_html=True)
+            
+            # Save to Space Logic
+            if target_space != "None":
+                entry = {
+                    "id": str(uuid.uuid4()),
+                    "query": query,
+                    "response": response,
+                    "timestamp": time.strftime("%Y-%m-%d %H:%M")
+                }
+                st.session_state.spaces[target_space].append(entry)
+                st.toast(f"Saved to {target_space} Space!", icon="✅")
+
+def spaces_page():
+    st.markdown("<h1 class='animate-fade'>My Spaces</h1>", unsafe_allow_html=True)
+    
+    tab1, tab2, tab3 = st.tabs(["📚 Research", "📝 Paper", "🎓 Study"])
+    
+    def render_space(space_name):
+        items = st.session_state.spaces[space_name]
+        
+        # AI Insight for the Space
+        if items:
+            if st.button(f"✨ Generate AI Insights for {space_name}"):
+                combined_text = " ".join([item['query'] for item in items])
+                insight = get_ai_response(f"Provide a high-level summary/insight connecting these legal topics: {combined_text}", "Academic", "Intermediate", context="insight")
+                st.info(f"**AI Insight:** {insight}")
+        
+        if not items:
+            st.info(f"Your {space_name} space is empty. Start researching!")
+        else:
+            for item in items:
+                with st.expander(f"📄 {item['query']} ({item['timestamp']})"):
+                    st.write(item['response'])
+                    if st.button("Delete", key=item['id']):
+                        st.session_state.spaces[space_name].remove(item)
+                        st.rerun()
+
+    with tab1: render_space("Research")
+    with tab2: render_space("Paper")
+    with tab3: render_space("Study")
+
+# --- MAIN ROUTER ---
+
+if st.session_state.page == "login":
+    login_page()
+elif st.session_state.page == "profile_setup":
     profile_setup()
 else:
-    main_app()
+    # Authenticated Pages
+    sidebar()
+    if st.session_state.page == "home":
+        home_page()
+    elif st.session_state.page == "spaces":
+        spaces_page()
+    elif st.session_state.page == "settings":
+        st.title("Settings")
+        st.write("User Preferences and Account Management would go here.")
