@@ -190,7 +190,10 @@ def get_ai_response(query, tone, difficulty, context="general"):
         return "⚠️ Please enter your Gemini API Key in the sidebar settings or set it in Streamlit Secrets."
     
     genai.configure(api_key=st.session_state.api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    # Try multiple model names in case one is deprecated or not available in the region
+    # Flash is faster, Pro is older but reliable fallback
+    models_to_try = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash-001', 'gemini-pro']
     
     prompt = f"""
     You are VidhiDesk, an expert Indian legal assistant.
@@ -206,12 +209,24 @@ def get_ai_response(query, tone, difficulty, context="general"):
     If appropriate, include relevant Case Laws.
     """
     
-    try:
-        with st.spinner("Consulting the legal archives..."):
-            response = model.generate_content(prompt)
+    last_error = None
+    response = None
+
+    for model_name in models_to_try:
+        try:
+            model = genai.GenerativeModel(model_name)
+            with st.spinner(f"Consulting the legal archives ({model_name})..."):
+                response = model.generate_content(prompt)
+            # If successful, break the loop
+            break
+        except Exception as e:
+            last_error = e
+            continue
+    
+    if response:
         return response.text
-    except Exception as e:
-        return f"Error: {str(e)}"
+    else:
+        return f"Error: Could not connect to Gemini. Details: {str(last_error)}"
 
 # --- PAGES ---
 
