@@ -191,10 +191,27 @@ def get_ai_response(query, tone, difficulty, context="general"):
     
     genai.configure(api_key=st.session_state.api_key)
     
-    # Try multiple model names in case one is deprecated or not available in the region
-    # Flash is faster, Pro is older but reliable fallback
-    models_to_try = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash-001', 'gemini-pro']
-    
+    # 1. Dynamically find a working model
+    # This prevents 404 errors by asking the API "what models do I have access to?"
+    target_model_name = "gemini-1.5-flash" # Default fallback
+    try:
+        available_models = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                available_models.append(m.name)
+        
+        # Priority Logic: Prefer Flash -> Pro -> Flash Legacy -> Pro Legacy
+        if any('gemini-1.5-flash' in m for m in available_models):
+             target_model_name = 'gemini-1.5-flash'
+        elif any('gemini-1.5-pro' in m for m in available_models):
+             target_model_name = 'gemini-1.5-pro'
+        elif len(available_models) > 0:
+             # Pick the first one that looks like a gemini model
+             target_model_name = available_models[0]
+    except Exception:
+        # If list_models fails (e.g. permission issues), we stick to the default fallback
+        pass
+
     prompt = f"""
     You are VidhiDesk, an expert Indian legal assistant.
     User Query: {query}
@@ -209,24 +226,13 @@ def get_ai_response(query, tone, difficulty, context="general"):
     If appropriate, include relevant Case Laws.
     """
     
-    last_error = None
-    response = None
-
-    for model_name in models_to_try:
-        try:
-            model = genai.GenerativeModel(model_name)
-            with st.spinner(f"Consulting the legal archives ({model_name})..."):
-                response = model.generate_content(prompt)
-            # If successful, break the loop
-            break
-        except Exception as e:
-            last_error = e
-            continue
-    
-    if response:
+    try:
+        model = genai.GenerativeModel(target_model_name)
+        with st.spinner(f"Consulting the legal archives ({target_model_name})..."):
+            response = model.generate_content(prompt)
         return response.text
-    else:
-        return f"Error: Could not connect to Gemini. Details: {str(last_error)}"
+    except Exception as e:
+        return f"Error connecting to Gemini ({target_model_name}): {str(e)}"
 
 # --- PAGES ---
 
