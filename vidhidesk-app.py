@@ -3,6 +3,8 @@ import google.generativeai as genai
 import time
 import uuid
 import hashlib
+import json
+import os
 
 # --- CONFIGURATION & SETUP ---
 st.set_page_config(
@@ -114,38 +116,56 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- BACKEND SIMULATION (User Manager) ---
+# --- BACKEND SIMULATION (User Manager with JSON Persistence) ---
 class UserManager:
     def __init__(self):
-        # In a real app, this would be a database connection.
-        # Here we use session_state to persist during runtime.
-        if 'db_users' not in st.session_state:
-            st.session_state.db_users = {
-                "admin@law.edu": {
-                    "password": self._hash_password("admin123"),
-                    "name": "Administrator",
-                    "institution": "VidhiDesk HQ",
-                    "year": "Graduate",
-                    "setup_complete": True
-                }
-            }
+        self.db_path = "users.json"
+        self.users = self._load_users()
 
     def _hash_password(self, password):
         return hashlib.sha256(password.encode()).hexdigest()
 
+    def _load_users(self):
+        """Loads users from JSON file if it exists, else returns default admin."""
+        if os.path.exists(self.db_path):
+            try:
+                with open(self.db_path, "r") as f:
+                    return json.load(f)
+            except:
+                return self._default_users()
+        else:
+            return self._default_users()
+
+    def _default_users(self):
+        return {
+            "admin@law.edu": {
+                "password": self._hash_password("admin123"),
+                "name": "Administrator",
+                "institution": "VidhiDesk HQ",
+                "year": "Graduate",
+                "setup_complete": True
+            }
+        }
+
+    def _save_users(self):
+        """Saves current users dict to JSON file."""
+        with open(self.db_path, "w") as f:
+            json.dump(self.users, f)
+
     def register(self, email, password):
-        if email in st.session_state.db_users:
+        if email in self.users:
             return False, "Email already exists."
         
-        st.session_state.db_users[email] = {
+        self.users[email] = {
             "password": self._hash_password(password),
             "name": "New User",
             "setup_complete": False
         }
+        self._save_users() # Save to file
         return True, "Registration successful! Please log in."
 
     def login(self, email, password):
-        user = st.session_state.db_users.get(email)
+        user = self.users.get(email)
         if not user:
             return False, "User not found."
         
@@ -155,14 +175,16 @@ class UserManager:
             return False, "Incorrect password."
 
     def update_profile(self, email, name, institution, year):
-        if email in st.session_state.db_users:
-            st.session_state.db_users[email]["name"] = name
-            st.session_state.db_users[email]["institution"] = institution
-            st.session_state.db_users[email]["year"] = year
-            st.session_state.db_users[email]["setup_complete"] = True
+        if email in self.users:
+            self.users[email]["name"] = name
+            self.users[email]["institution"] = institution
+            self.users[email]["year"] = year
+            self.users[email]["setup_complete"] = True
+            self._save_users() # Save to file
             return True
         return False
 
+# Initialize Manager
 user_manager = UserManager()
 
 # --- SESSION STATE INITIALIZATION ---
@@ -173,7 +195,7 @@ if 'page' not in st.session_state:
 if 'spaces' not in st.session_state:
     st.session_state.spaces = {"Research": [], "Paper": [], "Study": []}
 if 'chat_history' not in st.session_state:
-    st.session_state.chat_history = [] # List of {"role": "user/ai", "content": "..."}
+    st.session_state.chat_history = [] 
 
 # Check secrets for API key, else fallback
 if 'api_key' not in st.session_state:
