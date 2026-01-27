@@ -11,59 +11,114 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CUSTOM CSS (Beige-Purple Theme, Rounded UI) ---
+# --- CUSTOM CSS (Dark Mode: Major Black - Minor Purple) ---
 st.markdown("""
 <style>
-    /* Main Background - Beige */
+    /* Main Background - Deep Black/Grey */
     .stApp {
-        background-color: #F9F7F2;
-        color: #333333;
+        background-color: #0E0E0E;
+        color: #E0E0E0;
     }
     
-    /* Sidebar - Deep Purple */
-    [data-testid="stSidebar"] {
-        background-color: #2E1A47;
+    /* Sidebar - Very Dark Purple/Black */
+    section[data-testid="stSidebar"] {
+        background-color: #120A1A;
+        border-right: 1px solid #2D1B4E;
     }
-    [data-testid="stSidebar"] * {
-        color: #F9F7F2 !important;
+    
+    /* Text Coloring in Sidebar */
+    section[data-testid="stSidebar"] h1, 
+    section[data-testid="stSidebar"] h2, 
+    section[data-testid="stSidebar"] h3, 
+    section[data-testid="stSidebar"] label, 
+    section[data-testid="stSidebar"] span,
+    section[data-testid="stSidebar"] p {
+        color: #D1C4E9 !important;
     }
 
-    /* Buttons - Purple & Rounded */
+    /* Buttons - Neon Purple & Rounded */
     .stButton > button {
-        background-color: #6A0DAD;
-        color: white;
+        background: linear-gradient(135deg, #6200EA 0%, #3700B3 100%);
+        color: #FFFFFF;
         border-radius: 25px;
-        border: none;
+        border: 1px solid #7C4DFF;
         padding: 10px 24px;
         transition: all 0.3s ease;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 10px rgba(98, 0, 234, 0.3);
+        font-weight: 500;
     }
     .stButton > button:hover {
-        background-color: #8A2BE2;
+        background: linear-gradient(135deg, #7C4DFF 0%, #651FFF 100%);
         transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(124, 77, 255, 0.5);
+        border-color: #B388FF;
+    }
+    
+    /* Secondary/Ghost Buttons (if any) */
+    button[kind="secondary"] {
+        background-color: transparent;
+        border: 1px solid #BB86FC;
+        color: #BB86FC;
     }
 
-    /* Input Fields - Rounded */
-    .stTextInput > div > div > input, .stSelectbox > div > div > div {
-        border-radius: 15px;
-        background-color: #FFFFFF;
-        border: 1px solid #D1C4E9;
+    /* Input Fields - Dark Grey with Purple Borders */
+    .stTextInput > div > div > input, 
+    .stSelectbox > div > div > div {
+        border-radius: 12px;
+        background-color: #1E1E1E;
+        color: #FFFFFF;
+        border: 1px solid #3E2C5A;
+    }
+    .stTextInput > div > div > input:focus, 
+    .stSelectbox > div > div > div:focus {
+        border-color: #BB86FC;
+        box-shadow: 0 0 5px rgba(187, 134, 252, 0.5);
+    }
+    
+    /* Dropdown Menu Items */
+    ul[data-testid="stSelectboxVirtualDropdown"] {
+        background-color: #1E1E1E;
+        color: white;
     }
 
     /* Cards/Containers */
     .css-card {
-        background-color: #FFFFFF;
-        padding: 20px;
-        border-radius: 20px;
-        box-shadow: 0 4px 15px rgba(106, 13, 173, 0.1);
+        background-color: #1A1A1A;
+        padding: 25px;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
         margin-bottom: 20px;
-        border-left: 5px solid #6A0DAD;
+        border: 1px solid #333;
+        border-left: 4px solid #BB86FC; /* Light Purple Accent */
     }
 
     /* Headers */
     h1, h2, h3 {
         font-family: 'Helvetica Neue', sans-serif;
-        color: #4A148C;
+        color: #BB86FC !important; /* Material Design Purple 200 */
+    }
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: #1E1E1E;
+        border-radius: 8px 8px 0 0;
+        color: #9E9E9E;
+        border: none;
+    }
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        background-color: #311B92;
+        color: #FFFFFF;
+        border-bottom: 2px solid #BB86FC;
+    }
+
+    /* Expander */
+    .streamlit-expanderHeader {
+        background-color: #1E1E1E;
+        color: #E0E0E0;
+        border-radius: 8px;
     }
     
     /* Animations */
@@ -72,7 +127,13 @@ st.markdown("""
         100% { opacity: 1; transform: translateY(0); }
     }
     .animate-fade {
-        animation: fadeIn 0.8s ease-out;
+        animation: fadeIn 0.6s ease-out;
+    }
+    
+    /* Toast */
+    div[data-baseweb="toast"] {
+        background-color: #311B92;
+        color: white;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -86,9 +147,12 @@ if 'spaces' not in st.session_state:
     st.session_state.spaces = {"Research": [], "Paper": [], "Study": []}
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
-# Check if API key is in secrets, otherwise default to empty
+# Check secrets for API key, else fallback to empty
 if 'api_key' not in st.session_state:
-    st.session_state.api_key = st.secrets["GEMINI_API_KEY"] if "GEMINI_API_KEY" in st.secrets else ""
+    try:
+        st.session_state.api_key = st.secrets["GEMINI_API_KEY"]
+    except:
+        st.session_state.api_key = ""
 
 # --- MOCK DATABASE ---
 INSTITUTIONS = [
@@ -102,7 +166,6 @@ INSTITUTIONS = [
     "M.I.E.T. Engineering College (Tech Law Dept)", 
     "Dr. Ambedkar Government Law College",
     "Vel Tech School of Law",
-    # ... In a real app, this list would contain all ~100 institutions
 ]
 
 # --- HELPER FUNCTIONS ---
@@ -124,7 +187,7 @@ def get_ai_response(query, tone, difficulty, context="general"):
     Interacts with Gemini API.
     """
     if not st.session_state.api_key:
-        return "⚠️ Please enter your Gemini API Key in the sidebar settings."
+        return "⚠️ Please enter your Gemini API Key in the sidebar settings or set it in Streamlit Secrets."
     
     genai.configure(api_key=st.session_state.api_key)
     model = genai.GenerativeModel('gemini-1.5-flash')
@@ -139,6 +202,7 @@ def get_ai_response(query, tone, difficulty, context="general"):
     3. Context: {context} (If 'bare act', quote the law precisely).
     
     Provide a clear, structured response fitting these constraints. 
+    Use markdown formatting (bolding, lists) to make it readable on a dark background.
     If appropriate, include relevant Case Laws.
     """
     
@@ -152,7 +216,15 @@ def get_ai_response(query, tone, difficulty, context="general"):
 # --- PAGES ---
 
 def login_page():
-    st.markdown("<div style='text-align: center; margin-top: 50px;'><h1 style='font-size: 3rem;'>⚖️ VidhiDesk</h1><p>Your AI Legal Research Companion</p></div>", unsafe_allow_html=True)
+    # Centered Logo/Title
+    st.markdown("""
+        <div style='text-align: center; margin-top: 50px; margin-bottom: 30px;'>
+            <h1 style='font-size: 3.5rem; background: -webkit-linear-gradient(#BB86FC, #6200EA); -webkit-background-clip: text; -webkit-text-fill-color: transparent;'>
+                ⚖️ VidhiDesk
+            </h1>
+            <p style='color: #9E9E9E; font-size: 1.2rem;'>Your AI Legal Research Companion</p>
+        </div>
+    """, unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1,1,1])
     with col2:
@@ -160,17 +232,19 @@ def login_page():
         tab1, tab2 = st.tabs(["Login", "Register"])
         
         with tab1:
-            email = st.text_input("Email", key="login_email")
-            password = st.text_input("Password", type="password", key="login_pass")
+            email = st.text_input("Email", key="login_email", placeholder="student@law.edu")
+            password = st.text_input("Password", type="password", key="login_pass", placeholder="••••••••")
+            st.markdown("<br>", unsafe_allow_html=True)
             if st.button("Log In", use_container_width=True):
                 if authenticate(email, password):
-                    # Mock fetching user profile
                     st.session_state.user = {"email": email, "name": "User", "setup_complete": False}
                     st.session_state.page = "profile_setup"
                     st.rerun()
                 else:
                     st.error("Invalid credentials")
-            st.markdown("---")
+            
+            st.markdown("<div style='text-align: center; margin: 15px 0; color: #555;'>— OR —</div>", unsafe_allow_html=True)
+            
             if st.button("🔵 Continue with Google", use_container_width=True):
                 st.info("Google Auth simulation: Redirecting...")
                 time.sleep(1)
@@ -179,8 +253,9 @@ def login_page():
                 st.rerun()
 
         with tab2:
-            st.text_input("New Email")
-            st.text_input("New Password", type="password")
+            st.text_input("New Email", placeholder="student@law.edu")
+            st.text_input("New Password", type="password", placeholder="Create a strong password")
+            st.markdown("<br>", unsafe_allow_html=True)
             if st.button("Sign Up", use_container_width=True):
                 st.success("Account created! Please log in.")
         
@@ -197,6 +272,7 @@ def profile_setup():
         institution = st.selectbox("Institution", INSTITUTIONS)
         year = st.selectbox("Year of Study", ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year", "LLM/PhD", "Graduate"])
         
+        st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Complete Setup"):
             if full_name and institution:
                 st.session_state.user['name'] = full_name
@@ -212,8 +288,8 @@ def profile_setup():
 
 def sidebar():
     with st.sidebar:
-        st.title("VidhiDesk")
-        st.write(f"👤 **{st.session_state.user['name']}**")
+        st.markdown("<h2 style='color: #BB86FC;'>VidhiDesk</h2>", unsafe_allow_html=True)
+        st.markdown(f"**{st.session_state.user['name']}**")
         st.caption(f"{st.session_state.user['institution']}")
         
         st.markdown("---")
@@ -223,8 +299,8 @@ def sidebar():
         if st.button("⚙️ Settings", use_container_width=True): set_page("settings")
         
         st.markdown("---")
-        # API Key input for the prototype
-        api_input = st.text_input("Gemini API Key", type="password", value=st.session_state.api_key)
+        # API Key input
+        api_input = st.text_input("Gemini API Key", type="password", value=st.session_state.api_key, help="Leave empty if using Secrets")
         if api_input:
             st.session_state.api_key = api_input
             
@@ -252,7 +328,12 @@ def home_page():
             response = get_ai_response(query, tone, difficulty)
             
             # Display Result
-            st.markdown(f"<div class='css-card animate-fade'><h3>🏛️ Analysis</h3>{response}</div>", unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class='css-card animate-fade'>
+                <h3 style='color: #BB86FC;'>🏛️ Analysis</h3>
+                <div style='color: #E0E0E0; line-height: 1.6;'>{response}</div>
+            </div>
+            """, unsafe_allow_html=True)
             
             # Save to Space Logic
             if target_space != "None":
@@ -275,17 +356,23 @@ def spaces_page():
         
         # AI Insight for the Space
         if items:
+            st.markdown("<br>", unsafe_allow_html=True)
             if st.button(f"✨ Generate AI Insights for {space_name}"):
                 combined_text = " ".join([item['query'] for item in items])
                 insight = get_ai_response(f"Provide a high-level summary/insight connecting these legal topics: {combined_text}", "Academic", "Intermediate", context="insight")
-                st.info(f"**AI Insight:** {insight}")
+                st.markdown(f"""
+                <div class='css-card' style='border-left-color: #03DAC6;'>
+                    <strong style='color: #03DAC6;'>AI Insight:</strong>
+                    <br>{insight}
+                </div>
+                """, unsafe_allow_html=True)
         
         if not items:
             st.info(f"Your {space_name} space is empty. Start researching!")
         else:
             for item in items:
                 with st.expander(f"📄 {item['query']} ({item['timestamp']})"):
-                    st.write(item['response'])
+                    st.markdown(item['response'])
                     if st.button("Delete", key=item['id']):
                         st.session_state.spaces[space_name].remove(item)
                         st.rerun()
@@ -309,4 +396,4 @@ else:
         spaces_page()
     elif st.session_state.page == "settings":
         st.title("Settings")
-        st.write("User Preferences and Account Management would go here.")
+        st.markdown("<div class='css-card'>User Preferences and Account Management would go here.</div>", unsafe_allow_html=True)
