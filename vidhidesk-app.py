@@ -129,9 +129,19 @@ if "spaces" not in st.session_state:
 
 # --- Gemini API Setup ---
 API_KEY = st.secrets.get("GEMINI_API_KEY", "")
-if API_KEY:
-    genai.configure(api_key=API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+
+def get_ai_model():
+    if not API_KEY:
+        return None
+    try:
+        genai.configure(api_key=API_KEY)
+        # Using a more standard model identifier to avoid the 404 error
+        return genai.GenerativeModel('gemini-1.5-flash')
+    except Exception as e:
+        st.error(f"Failed to initialize AI: {e}")
+        return None
+
+model = get_ai_model()
 
 # --- Router Components ---
 
@@ -143,15 +153,15 @@ def login_screen():
     with col2:
         tab1, tab2 = st.tabs(["Login", "Register"])
         with tab1:
-            st.text_input("Email", placeholder="advocate@vidhidesk.com")
-            st.text_input("Password", type="password")
+            st.text_input("Email", placeholder="advocate@vidhidesk.com", key="l_email")
+            st.text_input("Password", type="password", key="l_pass")
             if st.button("Sign In"):
                 st.session_state.user_authenticated = True
                 st.rerun()
         with tab2:
-            st.text_input("Full Name", placeholder="e.g. Rahul Sharma")
-            st.text_input("Register Email")
-            st.text_input("Choose Password", type="password")
+            st.text_input("Full Name", placeholder="e.g. Rahul Sharma", key="r_name")
+            st.text_input("Register Email", key="r_email")
+            st.text_input("Choose Password", type="password", key="r_pass")
             if st.button("Create Account"):
                 st.session_state.user_authenticated = True
                 st.rerun()
@@ -161,7 +171,7 @@ def profile_setup():
     with st.container():
         st.markdown("<div style='background-color:#18181B; padding:30px; border-radius:20px; border:1px solid #27272A;'>", unsafe_allow_html=True)
         name = st.text_input("Full Name")
-        inst = st.selectbox("Institution", ["Tamil Nadu National Law University (TNNLU)", "NLSIU", "NALSAR", "GNLU", "Other"])
+        inst = st.selectbox("Institution", ["Tamil Nadu National Law University (TNNLU)", "NLSIU", "NALSAR", "GNLU", "DU Faculty of Law", "Other"])
         year = st.select_slider("Year of Study", options=["1st", "2nd", "3rd", "4th", "5th", "LLM", "Research"])
         
         if st.button("Enter the Hub"):
@@ -211,13 +221,17 @@ def main_app():
             with st.chat_message("assistant"):
                 if not API_KEY:
                     response = "⚠️ **API Key Missing**: Please add `GEMINI_API_KEY` to your Streamlit Secrets."
+                elif not model:
+                    response = "❌ **AI Initialization Error**: Check your API key and network connection."
                 else:
-                    try:
-                        context = f"Student Profile: {st.session_state.profile_data['year']} year at {st.session_state.profile_data['inst']}. Tone: {tone}. Difficulty: {difficulty}."
-                        ai_response = model.generate_content(f"{context} \n\n Explain this legal concept: {prompt}")
-                        response = ai_response.text
-                    except Exception as e:
-                        response = f"An error occurred: {str(e)}"
+                    with st.spinner("Analyzing Legal Context..."):
+                        try:
+                            context = f"Student Profile: {st.session_state.profile_data['year']} year at {st.session_state.profile_data['inst']}. Tone: {tone}. Difficulty: {difficulty}."
+                            ai_response = model.generate_content(f"{context} \n\n Explain this legal concept: {prompt}")
+                            response = ai_response.text
+                        except Exception as e:
+                            # Fallback if specific model name is rejected
+                            response = f"An error occurred: {str(e)}. Tip: Try updating the google-generativeai package."
                 
                 st.markdown(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
