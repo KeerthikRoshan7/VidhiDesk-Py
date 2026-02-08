@@ -125,8 +125,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. HARDCODED CONFIGURATION ---
-INTERNAL_API_KEY = "AIzaSyCW3LoC7mL4nS9BmMIRjIhS4ZBFp1jUq7E"
+# --- 3. CONFIGURATION & INSTITUTIONS ---
+# NOTE: The previous key expired. 
+# You can paste a new key here, OR use the sidebar in the app to input it.
+HARDCODED_KEY = "" 
 
 INSTITUTIONS = sorted([
     "National Law School of India University (NLSIU), Bangalore", "NALSAR University of Law, Hyderabad",
@@ -233,9 +235,11 @@ class DBHandler:
 db = DBHandler()
 
 # --- 5. AI ENGINE (Model Hunter) ---
-def get_gemini_response(query, tone, difficulty, institution):
-    # USE HARDCODED KEY
-    genai.configure(api_key=INTERNAL_API_KEY)
+def get_gemini_response(query, tone, difficulty, institution, api_key):
+    if not api_key:
+        return "⚠️ **Access Error:** No API Key found. Please add a valid Gemini API Key in the sidebar."
+
+    genai.configure(api_key=api_key)
     
     sys_instruction = f"""
     ROLE: You are VidhiDesk, an elite legal research assistant for {institution}.
@@ -248,7 +252,7 @@ def get_gemini_response(query, tone, difficulty, institution):
     4. FORMAT using Markdown: Use '### Headers', '**Bold**' for emphasis, and '>' for blockquotes.
     """
 
-    # Model Priority List to avoid 404s
+    # Model Priority List
     models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp']
     
     last_error = ""
@@ -259,13 +263,22 @@ def get_gemini_response(query, tone, difficulty, institution):
             return response.text 
         except Exception as e:
             last_error = str(e)
+            if "API_KEY_INVALID" in last_error or "expired" in last_error:
+                return f"❌ **Credentials Expired:** The provided API Key is invalid or expired. Please generate a new one at aistudio.google.com."
             continue 
 
-    return f"❌ **System Unavailable:** All AI models are currently unreachable. (Last error: {last_error})"
+    return f"❌ **System Unavailable:** Connection failed. (Details: {last_error})"
 
 # --- 6. UI LOGIC ---
 
 if "user" not in st.session_state: st.session_state.user = None
+
+# Initialize Key State: Check Code -> Check Secrets -> Check Session
+if "api_key" not in st.session_state:
+    if HARDCODED_KEY:
+        st.session_state.api_key = HARDCODED_KEY
+    else:
+        st.session_state.api_key = ""
 
 def login_page():
     # Centered Login with Animation
@@ -303,9 +316,17 @@ def main_app():
         nav = st.radio("SYSTEM MODULES", ["Research Core", "Knowledge Vault"], label_visibility="collapsed")
         
         st.markdown("---")
-        # Hidden API Key Section - Connected via backend only
-        st.markdown(f"<div style='border: 1px solid #333; padding: 10px; border-radius: 5px; background: #000;'><span style='color: #4CAF50;'>●</span> System Online<br><span style='font-size: 0.7rem; color: #555;'>AI Engine: Gemini 1.5</span></div>", unsafe_allow_html=True)
         
+        # API Key Management (Hidden if valid, visible if empty/invalid)
+        with st.expander("🔑 System Uplink", expanded=not bool(st.session_state.api_key)):
+            new_key = st.text_input("API Key", value=st.session_state.api_key, type="password", help="Paste new key here if system is unavailable")
+            if new_key: st.session_state.api_key = new_key
+            
+            if st.session_state.api_key:
+                st.markdown(f"<div style='color: #4CAF50; font-size: 0.8rem;'>● Key Active</div>", unsafe_allow_html=True)
+            else:
+                st.markdown(f"<div style='color: #ff4444; font-size: 0.8rem;'>● Key Missing</div>", unsafe_allow_html=True)
+
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("TERMINATE UPLINK"):
             st.session_state.user = None
@@ -349,7 +370,8 @@ def main_app():
                 # AI Call
                 response = get_gemini_response(
                     query, tone, diff, 
-                    st.session_state.user['institution']
+                    st.session_state.user['institution'],
+                    st.session_state.api_key
                 )
                 
                 spinner_ph.empty() # Remove spinner
@@ -358,7 +380,7 @@ def main_app():
                 st.markdown(response)
                 db.save_message(st.session_state.user['email'], "assistant", response)
 
-                if space != "None" and "Connection Failed" not in response:
+                if space != "None" and "Connection Failed" not in response and "Credentials Expired" not in response:
                     db.save_to_space(st.session_state.user['email'], space, query, response)
                     st.toast(f"Archived to {space}", icon="📂")
 
