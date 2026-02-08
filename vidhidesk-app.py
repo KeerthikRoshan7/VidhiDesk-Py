@@ -1,5 +1,5 @@
 import streamlit as st
-import google.genai as genai
+from google import genai # NEW SDK
 import sqlite3
 import hashlib
 import time
@@ -10,14 +10,14 @@ st.set_page_config(
     page_title="VidhiDesk | Legal Intelligence",
     page_icon="⚖️",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# --- 2. THEME: OBSIDIAN & LIQUID GOLD (REFINED) ---
+# --- 2. THEME: OBSIDIAN & LIQUID GOLD ---
 st.markdown("""
 <style>
     /* IMPORTS */
-    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;600&display=swap');
 
     /* ANIMATIONS */
     @keyframes fadeInUp {
@@ -27,7 +27,7 @@ st.markdown("""
 
     /* GLOBAL RESET */
     .stApp {
-        background-color: #050505;
+        background-color: #000000;
         background-image: radial-gradient(circle at 50% 50%, #111 0%, #000 100%);
         color: #E0E0E0;
         font-family: 'Inter', sans-serif;
@@ -35,26 +35,35 @@ st.markdown("""
 
     /* SIDEBAR */
     section[data-testid="stSidebar"] {
-        background-color: #080808;
+        background-color: #050505;
         border-right: 1px solid #222;
     }
     
     /* TYPOGRAPHY - TITLE FIX */
+    .vidhi-title-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        padding: 20px 0;
+    }
+    
     .vidhi-title {
         font-family: 'Cinzel', serif;
         font-weight: 700;
-        font-size: 4rem; /* Increased size */
+        font-size: 5rem;
         text-align: center;
-        margin-bottom: 0;
-        /* Smooth Liquid Gold Gradient */
-        background: linear-gradient(135deg, #D4AF37 0%, #F2D06B 50%, #B8860B 100%);
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(135deg, #BF953F 0%, #FCF6BA 40%, #B38728 60%, #AA771C 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
         color: transparent;
-        text-shadow: 0px 4px 10px rgba(0,0,0,0.5);
-        letter-spacing: 4px;
-        white-space: nowrap; /* PREVENTS WRAPPING/QUANTIZING */
+        text-shadow: 0px 4px 20px rgba(212, 175, 55, 0.3);
+        letter-spacing: 8px;
+        white-space: nowrap;
+        line-height: 1.2;
     }
     
     h1, h2, h3 {
@@ -71,51 +80,42 @@ st.markdown("""
         background: linear-gradient(145deg, #B8860B, #8A6E0B);
         color: #FFFFFF;
         font-family: 'Cinzel', serif;
-        font-weight: 700;
+        font-weight: 600;
         border: 1px solid #D4AF37;
-        border-radius: 4px;
-        padding: 0.6rem 1.5rem;
+        border-radius: 2px;
+        padding: 0.7rem 2rem;
         transition: all 0.3s ease;
         text-transform: uppercase;
-        letter-spacing: 1.5px;
+        letter-spacing: 2px;
         box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        width: 100%;
     }
     .stButton > button:hover {
         transform: translateY(-2px);
         background: linear-gradient(145deg, #D4AF37, #AA771C);
-        box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+        box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
         border-color: #FFF;
         color: #FFF;
     }
 
-    /* SECONDARY BUTTONS */
-    button[kind="secondary"] {
-        background: transparent !important;
-        border: 1px solid #555 !important;
-        color: #888 !important;
-    }
-    button[kind="secondary"]:hover {
-        border-color: #D4AF37 !important;
-        color: #D4AF37 !important;
-    }
-
     /* INPUTS */
     .stTextInput > div > div > input, .stChatInput textarea {
-        background: #0F0F0F;
+        background: #080808;
         border: 1px solid #333;
         color: #FFF;
-        border-radius: 6px;
+        border-radius: 4px;
+        padding: 10px;
     }
     .stTextInput > div > div > input:focus, .stChatInput textarea:focus {
         border-color: #D4AF37;
-        box-shadow: 0 0 8px rgba(212, 175, 55, 0.2);
+        box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
     }
 
     /* CHAT BUBBLES */
     .stChatMessage {
-        background-color: rgba(255,255,255,0.02);
+        background-color: rgba(255,255,255,0.03);
         border: 1px solid #222;
-        border-radius: 12px;
+        border-radius: 8px;
         animation: fadeInUp 0.4s ease-out;
     }
     .stChatMessage[data-testid="stChatMessageAvatar"] {
@@ -127,7 +127,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 3. CONFIGURATION & CREDENTIALS ---
-# PRIMARY KEY
 INTERNAL_API_KEY = "AIzaSyCW3LoC7mL4nS9BmMIRjIhS4ZBFp1jUq7E"
 
 INSTITUTIONS = sorted([
@@ -234,14 +233,13 @@ class DBHandler:
 
 db = DBHandler()
 
-# --- 5. AI ENGINE (FIXED) ---
-def get_gemini_response(query, tone, difficulty, institution, passed_key):
-    # FORCE USE of internal key if passed key is empty or invalid format
-    api_key = passed_key
-    if not api_key or len(api_key) < 10:
-        api_key = INTERNAL_API_KEY
-
-    genai.configure(api_key=api_key)
+# --- 5. AI ENGINE (NEW GOOGLE GENAI SDK) ---
+def get_gemini_response(query, tone, difficulty, institution):
+    # Initialize Client with New SDK
+    try:
+        client = genai.Client(api_key=INTERNAL_API_KEY)
+    except Exception as e:
+        return f"❌ **Config Error:** {str(e)}"
     
     sys_instruction = f"""
     ROLE: You are VidhiDesk, an elite legal research assistant for {institution}.
@@ -254,45 +252,55 @@ def get_gemini_response(query, tone, difficulty, institution, passed_key):
     4. FORMAT using Markdown: Use '### Headers', '**Bold**' for emphasis, and '>' for blockquotes.
     """
 
-    # STABILITY FIX: Only use the standard stable models. 
-    models = ['gemini-1.5-flash', 'gemini-1.5-pro']
+    # NEW SDK MODEL LIST (Based on your screenshot)
+    # We use 'generate_content' from the 'models' attribute
+    models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']
     
     last_error = ""
     for model_name in models:
         try:
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content(f"{sys_instruction}\n\nUSER QUERY: {query}")
+            # New SDK Syntax
+            response = client.models.generate_content(
+                model=model_name,
+                contents=sys_instruction + "\n\nUSER QUERY: " + query
+            )
             return response.text 
         except Exception as e:
             last_error = str(e)
             continue 
 
-    # If all fail, return clean error
-    return f"❌ **System Unavailable:** Connection failed. (Details: {last_error})"
+    return f"❌ **System Unavailable:** Connection failed. (Last Error: {last_error})"
 
 # --- 6. UI LOGIC ---
 
 if "user" not in st.session_state: st.session_state.user = None
 
 def login_page():
-    # Centered Login with FIXED COLUMN RATIOS to prevent text breaking
-    # Changed from [1, 0.6, 1] to [1, 2, 1] to give the title breathing room
-    c1, c2, c3 = st.columns([1, 2, 1])
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    # Title with Fixed Layout
+    st.markdown("""
+        <div class='vidhi-title-container'>
+            <div class='vidhi-title'>VIDHIDESK</div>
+        </div>
+        <div style='text-align: center; margin-top: -10px; margin-bottom: 40px;'>
+            <div style='height: 1px; width: 200px; background: linear-gradient(90deg, transparent, #D4AF37, transparent); margin: 0 auto;'></div>
+            <p style='color: #888; font-size: 0.9rem; letter-spacing: 4px; text-transform: uppercase; margin-top: 10px;'>Intelligent Legal Infrastructure</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # Login Form
+    c1, c2, c3 = st.columns([1, 1, 1])
     with c2:
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        # Using CSS class 'vidhi-title' defined above for smooth rendering
-        st.markdown("<div class='vidhi-title'>VIDHIDESK</div>", unsafe_allow_html=True)
-        st.markdown("<div style='height: 1px; width: 100%; background: linear-gradient(90deg, transparent, #D4AF37, transparent); margin: 10px 0 30px 0;'></div>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #888; font-size: 0.8rem; letter-spacing: 3px; text-transform: uppercase;'>Intelligent Legal Infrastructure</p>", unsafe_allow_html=True)
-        
         with st.container(border=True):
-            email = st.text_input("IDENTITY TOKEN (EMAIL)")
+            st.markdown("<div style='padding: 10px;'>", unsafe_allow_html=True)
+            email = st.text_input("IDENTITY TOKEN (EMAIL)", placeholder="admin@law.edu")
             password = st.text_input("SECURITY KEY (PASSWORD)", type="password")
+            st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("INITIATE SESSION", use_container_width=True):
                 with st.spinner("Authenticating..."):
-                    time.sleep(0.5) # UI Effect
+                    time.sleep(0.5) 
                     user = db.login(email, password)
                     if user:
                         st.session_state.user = user
@@ -301,7 +309,6 @@ def login_page():
                         st.error("Authentication Failed")
 
 def main_app():
-    # --- SIDEBAR ---
     with st.sidebar:
         st.image("https://cdn-icons-png.flaticon.com/512/924/924915.png", width=50)
         st.markdown(f"### {st.session_state.user['name'].upper()}")
@@ -311,43 +318,43 @@ def main_app():
         nav = st.radio("SYSTEM MODULES", ["Research Core", "Knowledge Vault"], label_visibility="collapsed")
         
         st.markdown("---")
-        # Hidden API Key Input (Auto-filled with internal key logic)
-        # Only show if user explicitly needs to override
-        with st.expander("System Config", expanded=False):
-             user_api_key = st.text_input("Override API Key", type="password")
+        st.markdown(f"""
+        <div style='border: 1px solid #333; padding: 12px; border-radius: 8px; background: #080808;'>
+            <div style='display:flex; align-items:center; margin-bottom:5px;'>
+                <span style='color: #4CAF50; font-size: 1.2rem; margin-right: 8px;'>●</span> 
+                <span style='color: #EEE; font-weight:600;'>System Online</span>
+            </div>
+            <div style='font-size: 0.7rem; color: #666;'>Engine: GenAI 2.0</div>
+        </div>
+        """, unsafe_allow_html=True)
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("TERMINATE UPLINK"):
             st.session_state.user = None
             st.rerun()
 
-    # --- RESEARCH CORE ---
     if nav == "Research Core":
         st.markdown("# RESEARCH CORE")
         st.markdown("<div style='height: 1px; width: 60px; background: #D4AF37; margin-bottom: 30px;'></div>", unsafe_allow_html=True)
 
-        # Control Panel
         with st.container(border=True):
             c1, c2, c3 = st.columns(3)
             tone = c1.select_slider("OUTPUT TONE", ["Casual", "Professional", "Academic"], value="Academic")
             diff = c2.select_slider("ANALYSIS DEPTH", ["Summary", "Detailed", "Bare Act"], value="Detailed")
             space = c3.selectbox("AUTO-ARCHIVE TO", ["None", "Research", "Paper", "Study"])
 
-        # Chat Interface
         history = db.get_history(st.session_state.user['email'])
         for msg in history:
             avatar = "🧑‍⚖️" if msg['role'] == "user" else "⚖️"
             with st.chat_message(msg['role'], avatar=avatar):
                 st.markdown(msg['content'])
 
-        # Input Area
         if query := st.chat_input("Input legal query, section, or case citation..."):
             with st.chat_message("user", avatar="🧑‍⚖️"):
                 st.markdown(query)
             db.save_message(st.session_state.user['email'], "user", query)
 
             with st.chat_message("assistant", avatar="⚖️"):
-                # Custom Aesthetic Spinner
                 spinner_ph = st.empty()
                 spinner_ph.markdown("""
                     <div style='display: flex; align-items: center; color: #D4AF37; padding: 10px;'>
@@ -356,16 +363,12 @@ def main_app():
                     </div>
                 """, unsafe_allow_html=True)
                 
-                # AI Call
                 response = get_gemini_response(
                     query, tone, diff, 
-                    st.session_state.user['institution'],
-                    user_api_key if 'user_api_key' in locals() and user_api_key else ""
+                    st.session_state.user['institution']
                 )
                 
-                spinner_ph.empty() # Remove spinner
-                
-                # Fade In Response
+                spinner_ph.empty()
                 st.markdown(response)
                 db.save_message(st.session_state.user['email'], "assistant", response)
 
@@ -380,15 +383,12 @@ def main_app():
                     db.clear_history(st.session_state.user['email'])
                     st.rerun()
 
-    # --- KNOWLEDGE VAULT ---
     elif nav == "Knowledge Vault":
         st.markdown("# KNOWLEDGE VAULT")
         st.markdown("<div style='height: 1px; width: 60px; background: #D4AF37; margin-bottom: 30px;'></div>", unsafe_allow_html=True)
         
         t1, t2, t3 = st.tabs(["📚 RESEARCH", "📝 PAPERS", "🎓 STUDY"])
-        
-        cats = ["Research", "Paper", "Study"]
-        for tab, cat in zip([t1, t2, t3], cats):
+        for tab, cat in zip([t1, t2, t3], ["Research", "Paper", "Study"]):
             with tab:
                 items = db.get_space_items(st.session_state.user['email'], cat)
                 if not items:
