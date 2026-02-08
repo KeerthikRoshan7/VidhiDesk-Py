@@ -146,7 +146,7 @@ st.markdown("""
 
 # --- DATABASE BACKEND (SQLite) ---
 class DatabaseManager:
-    # UPDATED: Changed DB name to force fresh creation and fix schema mismatch
+    # Use versioned DB to ensure schema updates don't break the app
     def __init__(self, db_name="vidhidesk_v2.db"):
         self.conn = sqlite3.connect(db_name, check_same_thread=False)
         self.create_tables()
@@ -167,18 +167,17 @@ class DatabaseManager:
         )""")
         self.conn.commit()
         
-        # Default Admin - UPDATED with explicit column names and broader error handling
+        # Default Admin Creation (Robust)
         try:
             admin_pw = hashlib.sha256("admin123".encode()).hexdigest()
-            # Check if admin exists first to avoid unnecessary errors
+            # Check existence first
             cur = c.execute("SELECT email FROM users WHERE email=?", ("admin@law.edu",))
             if not cur.fetchone():
                 c.execute("INSERT INTO users (email, password, name, institution, year, setup_complete) VALUES (?, ?, ?, ?, ?, ?)", 
                          ("admin@law.edu", admin_pw, "Administrator", "VidhiDesk HQ", "Graduate", True))
                 self.conn.commit()
-        except Exception as e:
-            # Log error but don't crash app if admin creation fails (e.g., weird DB state)
-            print(f"Admin creation warning: {e}")
+        except Exception:
+            pass 
 
     def register(self, email, password):
         try:
@@ -195,7 +194,6 @@ class DatabaseManager:
         cur = self.conn.execute("SELECT * FROM users WHERE email = ? AND password = ?", (email, pw_hash))
         row = cur.fetchone()
         if row:
-            # Map by index to be safe
             return True, {"email": row[0], "name": row[2], "institution": row[3], "year": row[4], "setup_complete": row[5]}
         return False, "Invalid credentials."
 
@@ -271,14 +269,6 @@ def get_ai_response(query, tone, difficulty, context="general"):
     
     genai.configure(api_key=st.session_state.api_key)
     
-    # Model Fallback Logic
-    target_model = "gemini-1.5-flash"
-    try:
-        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        if any('gemini-1.5-flash' in m for m in models): target_model = 'gemini-1.5-flash'
-        elif any('gemini-pro' in m for m in models): target_model = 'gemini-pro'
-    except: pass
-
     prompt = f"""
     Act as VidhiDesk, an Indian Legal Research Assistant.
     Query: {query}
@@ -289,11 +279,27 @@ def get_ai_response(query, tone, difficulty, context="general"):
     2. Reference relevant Supreme Court Case Laws if applicable.
     3. Structure with Markdown (Headers, Bullets).
     """
-    try:
-        model = genai.GenerativeModel(target_model)
-        return model.generate_content(prompt).text
-    except Exception as e:
-        return f"Error: {str(e)}"
+
+    # PRIORITY LIST: Try models in this order. 
+    # This prevents the '404 gemini-pro not found' error by trying working models first.
+    candidate_models = [
+        "gemini-1.5-flash",
+        "gemini-1.5-pro",
+        "gemini-2.0-flash-exp", # For users with beta access
+        "gemini-1.0-pro"        # Legacy fallback
+    ]
+
+    for model_name in candidate_models:
+        try:
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            # If this model fails (e.g., 404 or Over Quota), silently try the next one
+            continue
+            
+    # If all models fail
+    return "System Error: Unable to connect to Google Gemini. Please check your API Key or try again later."
 
 # --- PAGES ---
 
