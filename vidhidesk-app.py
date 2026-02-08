@@ -146,7 +146,8 @@ st.markdown("""
 
 # --- DATABASE BACKEND (SQLite) ---
 class DatabaseManager:
-    def __init__(self, db_name="vidhidesk.db"):
+    # UPDATED: Changed DB name to force fresh creation and fix schema mismatch
+    def __init__(self, db_name="vidhidesk_v2.db"):
         self.conn = sqlite3.connect(db_name, check_same_thread=False)
         self.create_tables()
 
@@ -165,18 +166,24 @@ class DatabaseManager:
             id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT, role TEXT, content TEXT, timestamp TEXT
         )""")
         self.conn.commit()
-        # Default Admin
+        
+        # Default Admin - UPDATED with explicit column names and broader error handling
         try:
             admin_pw = hashlib.sha256("admin123".encode()).hexdigest()
-            c.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)", 
-                     ("admin@law.edu", admin_pw, "Administrator", "VidhiDesk HQ", "Graduate", True))
-            self.conn.commit()
-        except sqlite3.IntegrityError: pass
+            # Check if admin exists first to avoid unnecessary errors
+            cur = c.execute("SELECT email FROM users WHERE email=?", ("admin@law.edu",))
+            if not cur.fetchone():
+                c.execute("INSERT INTO users (email, password, name, institution, year, setup_complete) VALUES (?, ?, ?, ?, ?, ?)", 
+                         ("admin@law.edu", admin_pw, "Administrator", "VidhiDesk HQ", "Graduate", True))
+                self.conn.commit()
+        except Exception as e:
+            # Log error but don't crash app if admin creation fails (e.g., weird DB state)
+            print(f"Admin creation warning: {e}")
 
     def register(self, email, password):
         try:
             pw_hash = hashlib.sha256(password.encode()).hexdigest()
-            self.conn.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)", 
+            self.conn.execute("INSERT INTO users (email, password, name, institution, year, setup_complete) VALUES (?, ?, ?, ?, ?, ?)", 
                              (email, pw_hash, "New User", "", "", False))
             self.conn.commit()
             return True, "Registered successfully!"
@@ -188,6 +195,7 @@ class DatabaseManager:
         cur = self.conn.execute("SELECT * FROM users WHERE email = ? AND password = ?", (email, pw_hash))
         row = cur.fetchone()
         if row:
+            # Map by index to be safe
             return True, {"email": row[0], "name": row[2], "institution": row[3], "year": row[4], "setup_complete": row[5]}
         return False, "Invalid credentials."
 
