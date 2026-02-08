@@ -105,9 +105,6 @@ st.markdown("""
 class DBHandler:
     def __init__(self, db_name="vidhidesk_users.db"):
         self.db_name = db_name
-        # We don't create tables here anymore because we assume
-        # the user has uploaded the pre-filled 'vidhidesk_users.db'.
-        # However, we verify connection to ensure it exists.
         self.verify_db()
 
     def get_connection(self):
@@ -119,7 +116,6 @@ class DBHandler:
             conn.execute("SELECT 1 FROM users LIMIT 1")
             conn.close()
         except sqlite3.OperationalError:
-            # Fallback: Create tables if file is missing/empty (Prevents app crash)
             self.create_schema()
 
     def create_schema(self):
@@ -218,6 +214,9 @@ def get_gemini_response(query, tone, difficulty, institution, api_key):
 
 # Session Init
 if "user" not in st.session_state: st.session_state.user = None
+# HARDCODED API KEY INTEGRATION
+if "api_key" not in st.session_state: 
+    st.session_state.api_key = "AIzaSyBXwTtS5c6OsGQ_nI_tR-meZaRBCFZgkGY"
 
 def login_page():
     # Centered Login Card
@@ -251,8 +250,9 @@ def main_app():
         
         st.markdown("---")
         st.markdown("#### 🔑 API Key")
-        api_key = st.text_input("Gemini API Key", type="password", value=st.session_state.get("api_key", ""), label_visibility="collapsed")
-        if api_key: st.session_state.api_key = api_key
+        # Pre-filled API Key from Session State
+        api_key_input = st.text_input("Gemini API Key", type="password", value=st.session_state.api_key, label_visibility="collapsed")
+        if api_key_input: st.session_state.api_key = api_key_input
 
         st.markdown("---")
         if st.button("Terminate Session"):
@@ -292,7 +292,7 @@ def main_app():
                     response = get_gemini_response(
                         query, tone, diff, 
                         st.session_state.user['institution'], 
-                        st.session_state.get("api_key")
+                        st.session_state.api_key
                     )
                     st.markdown(response)
                     db.save_message(st.session_state.user['email'], "assistant", response)
