@@ -181,11 +181,14 @@ db = DBHandler()
 
 # --- 4. AI ENGINE (ROBUST MODEL HUNTER) ---
 def get_gemini_response(query, tone, difficulty, institution, api_key):
-    # FALLBACK: If API key is empty string, try using the hardcoded one explicitly
+    # FALLBACK: Force use of hardcoded key if session state is empty
     if not api_key:
         api_key = "AIzaSyBXwTtS5c6OsGQ_nI_tR-meZaRBCFZgkGY"
 
-    genai.configure(api_key=api_key)
+    try:
+        genai.configure(api_key=api_key)
+    except Exception as e:
+        return f"❌ **Configuration Error:** Invalid API Key format. ({str(e)})"
     
     sys_instruction = f"""
     ROLE: You are VidhiDesk, an elite legal research assistant for {institution}.
@@ -198,8 +201,8 @@ def get_gemini_response(query, tone, difficulty, institution, api_key):
     4. FORMAT using Markdown: Use '### Headers', '**Bold**' for emphasis, and '>' for blockquotes.
     """
 
-    # Try models in priority order
-    models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp']
+    # EXPANDED MODEL LIST: Including legacy models to ensure connection
+    models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro', 'gemini-pro']
     
     last_error = "Unknown Error"
 
@@ -212,8 +215,20 @@ def get_gemini_response(query, tone, difficulty, institution, api_key):
             last_error = str(e)
             continue # Try next
 
-    # Return the ACTUAL error message from the last attempt for debugging
-    return f"❌ **Connection Failed:** Could not reach Google AI.\n\n**Debug Details:** {last_error}"
+    # If we get here, everything failed. Return DETAILED error.
+    return f"""
+❌ **Connection Failed**
+VidhiDesk could not connect to Google AI using any available models.
+
+**Technical Details:**
+- API Key used: `{api_key[:5]}...{api_key[-3:]}`
+- Last Error: `{last_error}`
+
+**Troubleshooting:**
+1. If error says **"404 Not Found"**, your `requirements.txt` is missing or old.
+2. If error says **"400 Key not valid"**, the hardcoded key is broken.
+3. If error says **"429 Quota"**, the key has run out of free requests.
+"""
 
 # --- 5. UI COMPONENTS ---
 
@@ -221,7 +236,6 @@ def get_gemini_response(query, tone, difficulty, institution, api_key):
 if "user" not in st.session_state: st.session_state.user = None
 
 # HARDCODED API KEY INTEGRATION (FORCE UPDATE)
-# We check if it is missing OR empty, then force fill it.
 if "api_key" not in st.session_state or not st.session_state.api_key: 
     st.session_state.api_key = "AIzaSyBXwTtS5c6OsGQ_nI_tR-meZaRBCFZgkGY"
 
@@ -309,6 +323,7 @@ def main_app():
                     st.markdown(response)
                     db.save_message(st.session_state.user['email'], "assistant", response)
 
+                    # Only auto-save if successful
                     if space != "None" and "Connection Failed" not in response:
                         db.save_to_space(st.session_state.user['email'], space, query, response)
                         st.toast(f"Archived to {space}", icon="📂")
