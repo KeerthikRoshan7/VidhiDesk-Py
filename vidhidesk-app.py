@@ -13,17 +13,13 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. THEME: OBSIDIAN & LIQUID GOLD ---
+# --- 2. THEME: OBSIDIAN & LIQUID GOLD (REFINED) ---
 st.markdown("""
 <style>
     /* IMPORTS */
     @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600&display=swap');
 
     /* ANIMATIONS */
-    @keyframes shimmer {
-        0% {background-position: -1000px 0;}
-        100% {background-position: 1000px 0;}
-    }
     @keyframes fadeInUp {
         from {opacity: 0; transform: translate3d(0, 20px, 0);}
         to {opacity: 1; transform: translate3d(0, 0, 0);}
@@ -32,103 +28,106 @@ st.markdown("""
     /* GLOBAL RESET */
     .stApp {
         background-color: #050505;
-        background-image: radial-gradient(circle at 50% 50%, #1a1a1a 0%, #000000 100%);
+        background-image: radial-gradient(circle at 50% 50%, #111 0%, #000 100%);
         color: #E0E0E0;
         font-family: 'Inter', sans-serif;
     }
 
     /* SIDEBAR */
     section[data-testid="stSidebar"] {
-        background-color: #0A0A0A;
+        background-color: #080808;
         border-right: 1px solid #222;
-        box-shadow: 5px 0 15px rgba(0,0,0,0.5);
     }
     
-    /* TYPOGRAPHY */
-    h1, h2, h3 {
+    /* TYPOGRAPHY - TITLE FIX */
+    .vidhi-title {
         font-family: 'Cinzel', serif;
         font-weight: 700;
-        background: linear-gradient(to right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
+        font-size: 3.5rem;
+        text-align: center;
+        margin-bottom: 0;
+        /* Smooth Liquid Gold Gradient */
+        background: linear-gradient(135deg, #D4AF37 0%, #F2D06B 50%, #B8860B 100%);
         -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
         background-clip: text;
         color: transparent;
-        animation: shimmer 5s infinite linear;
-        background-size: 200% auto;
+        text-shadow: 0px 4px 10px rgba(0,0,0,0.5);
+        letter-spacing: 2px;
     }
-    p, label, span {
-        color: #B0B0B0 !important;
+    
+    h1, h2, h3 {
+        color: #D4AF37 !important;
+        font-family: 'Cinzel', serif;
+    }
+    
+    p, label, span, div {
+        color: #B0B0B0;
     }
 
     /* BUTTONS - GOLD FOIL STYLE */
     .stButton > button {
-        background: linear-gradient(145deg, #D4AF37, #AA771C);
-        color: #000;
+        background: linear-gradient(145deg, #B8860B, #8A6E0B);
+        color: #FFFFFF;
         font-family: 'Cinzel', serif;
         font-weight: 700;
-        border: none;
+        border: 1px solid #D4AF37;
         border-radius: 4px;
         padding: 0.6rem 1.5rem;
-        transition: all 0.4s ease;
+        transition: all 0.3s ease;
         text-transform: uppercase;
         letter-spacing: 1.5px;
-        box-shadow: 0 4px 15px rgba(212, 175, 55, 0.2);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
     }
     .stButton > button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
-        color: #fff;
+        background: linear-gradient(145deg, #D4AF37, #AA771C);
+        box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+        border-color: #FFF;
+        color: #FFF;
     }
 
-    /* CARDS & CONTAINERS */
-    div[data-testid="stExpander"] {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(212, 175, 55, 0.2);
-        border-radius: 8px;
-        backdrop-filter: blur(10px);
-        transition: border 0.3s ease;
+    /* SECONDARY BUTTONS */
+    button[kind="secondary"] {
+        background: transparent !important;
+        border: 1px solid #555 !important;
+        color: #888 !important;
     }
-    div[data-testid="stExpander"]:hover {
-        border-color: #D4AF37;
+    button[kind="secondary"]:hover {
+        border-color: #D4AF37 !important;
+        color: #D4AF37 !important;
     }
 
     /* INPUTS */
     .stTextInput > div > div > input, .stChatInput textarea {
-        background: #111;
+        background: #0F0F0F;
         border: 1px solid #333;
-        color: #fff;
+        color: #FFF;
         border-radius: 6px;
-        transition: all 0.3s;
     }
     .stTextInput > div > div > input:focus, .stChatInput textarea:focus {
         border-color: #D4AF37;
-        box-shadow: 0 0 10px rgba(212, 175, 55, 0.1);
+        box-shadow: 0 0 8px rgba(212, 175, 55, 0.2);
     }
 
     /* CHAT BUBBLES */
     .stChatMessage {
-        background-color: transparent;
+        background-color: rgba(255,255,255,0.02);
         border: 1px solid #222;
         border-radius: 12px;
-        animation: fadeInUp 0.5s ease-out;
+        animation: fadeInUp 0.4s ease-out;
     }
     .stChatMessage[data-testid="stChatMessageAvatar"] {
         background-color: #D4AF37;
         color: #000;
-    }
-
-    /* TOAST */
-    div[data-baseweb="toast"] {
-        background-color: #111;
-        border: 1px solid #D4AF37;
-        color: #D4AF37;
+        border-radius: 50%;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. CONFIGURATION & INSTITUTIONS ---
-# NOTE: The previous key expired. 
-# You can paste a new key here, OR use the sidebar in the app to input it.
-HARDCODED_KEY = "" 
+# --- 3. CONFIGURATION & CREDENTIALS ---
+# Specific Key provided by user
+INTERNAL_API_KEY = "AIzaSyCW3LoC7mL4nS9BmMIRjIhS4ZBFp1jUq7E"
 
 INSTITUTIONS = sorted([
     "National Law School of India University (NLSIU), Bangalore", "NALSAR University of Law, Hyderabad",
@@ -234,12 +233,10 @@ class DBHandler:
 
 db = DBHandler()
 
-# --- 5. AI ENGINE (Model Hunter) ---
-def get_gemini_response(query, tone, difficulty, institution, api_key):
-    if not api_key:
-        return "⚠️ **Access Error:** No API Key found. Please add a valid Gemini API Key in the sidebar."
-
-    genai.configure(api_key=api_key)
+# --- 5. AI ENGINE (FIXED STABILITY) ---
+def get_gemini_response(query, tone, difficulty, institution):
+    # Use Hardcoded Key
+    genai.configure(api_key=INTERNAL_API_KEY)
     
     sys_instruction = f"""
     ROLE: You are VidhiDesk, an elite legal research assistant for {institution}.
@@ -252,8 +249,9 @@ def get_gemini_response(query, tone, difficulty, institution, api_key):
     4. FORMAT using Markdown: Use '### Headers', '**Bold**' for emphasis, and '>' for blockquotes.
     """
 
-    # Model Priority List
-    models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp']
+    # STABILITY FIX: Only use the standard stable models. 
+    # Removed 'flash-exp' which causes 404s on many keys.
+    models = ['gemini-1.5-flash', 'gemini-1.5-pro']
     
     last_error = ""
     for model_name in models:
@@ -263,32 +261,24 @@ def get_gemini_response(query, tone, difficulty, institution, api_key):
             return response.text 
         except Exception as e:
             last_error = str(e)
-            if "API_KEY_INVALID" in last_error or "expired" in last_error:
-                return f"❌ **Credentials Expired:** The provided API Key is invalid or expired. Please generate a new one at aistudio.google.com."
             continue 
 
+    # If all fail, return clean error
     return f"❌ **System Unavailable:** Connection failed. (Details: {last_error})"
 
 # --- 6. UI LOGIC ---
 
 if "user" not in st.session_state: st.session_state.user = None
 
-# Initialize Key State: Check Code -> Check Secrets -> Check Session
-if "api_key" not in st.session_state:
-    if HARDCODED_KEY:
-        st.session_state.api_key = HARDCODED_KEY
-    else:
-        st.session_state.api_key = ""
-
 def login_page():
-    # Centered Login with Animation
+    # Centered Login with Fixed Title Styling
     c1, c2, c3 = st.columns([1, 0.6, 1])
     with c2:
         st.markdown("<br><br>", unsafe_allow_html=True)
-        # Animated Title via CSS class
-        st.markdown("<h1 style='text-align: center; font-size: 3.5rem; margin-bottom: 0;'>VIDHIDESK</h1>", unsafe_allow_html=True)
-        st.markdown("<div style='height: 2px; background: linear-gradient(90deg, transparent, #D4AF37, transparent); margin-bottom: 20px;'></div>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #888; letter-spacing: 2px; font-size: 0.9rem;'>INTELLIGENT LEGAL INFRASTRUCTURE</p>", unsafe_allow_html=True)
+        # Using CSS class 'vidhi-title' defined above for smooth rendering
+        st.markdown("<div class='vidhi-title'>VIDHIDESK</div>", unsafe_allow_html=True)
+        st.markdown("<div style='height: 1px; width: 100%; background: linear-gradient(90deg, transparent, #D4AF37, transparent); margin: 10px 0 30px 0;'></div>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #888; font-size: 0.8rem; letter-spacing: 3px; text-transform: uppercase;'>Intelligent Legal Infrastructure</p>", unsafe_allow_html=True)
         
         with st.container(border=True):
             email = st.text_input("IDENTITY TOKEN (EMAIL)")
@@ -296,8 +286,8 @@ def login_page():
             
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("INITIATE SESSION", use_container_width=True):
-                with st.spinner("Authenticating credentials..."):
-                    time.sleep(0.8) # UI Effect
+                with st.spinner("Authenticating..."):
+                    time.sleep(0.5) # UI Effect
                     user = db.login(email, password)
                     if user:
                         st.session_state.user = user
@@ -316,17 +306,18 @@ def main_app():
         nav = st.radio("SYSTEM MODULES", ["Research Core", "Knowledge Vault"], label_visibility="collapsed")
         
         st.markdown("---")
+        # Status Indicator
+        st.markdown(f"""
+        <div style='border: 1px solid #333; padding: 12px; border-radius: 8px; background: #080808;'>
+            <div style='display:flex; align-items:center; margin-bottom:5px;'>
+                <span style='color: #4CAF50; font-size: 1.2rem; margin-right: 8px;'>●</span> 
+                <span style='color: #EEE; font-weight:600;'>System Online</span>
+            </div>
+            <div style='font-size: 0.7rem; color: #666;'>AI Model: Gemini 1.5</div>
+            <div style='font-size: 0.7rem; color: #666;'>Latency: Optimal</div>
+        </div>
+        """, unsafe_allow_html=True)
         
-        # API Key Management (Hidden if valid, visible if empty/invalid)
-        with st.expander("🔑 System Uplink", expanded=not bool(st.session_state.api_key)):
-            new_key = st.text_input("API Key", value=st.session_state.api_key, type="password", help="Paste new key here if system is unavailable")
-            if new_key: st.session_state.api_key = new_key
-            
-            if st.session_state.api_key:
-                st.markdown(f"<div style='color: #4CAF50; font-size: 0.8rem;'>● Key Active</div>", unsafe_allow_html=True)
-            else:
-                st.markdown(f"<div style='color: #ff4444; font-size: 0.8rem;'>● Key Missing</div>", unsafe_allow_html=True)
-
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("TERMINATE UPLINK"):
             st.session_state.user = None
@@ -335,7 +326,7 @@ def main_app():
     # --- RESEARCH CORE ---
     if nav == "Research Core":
         st.markdown("# RESEARCH CORE")
-        st.markdown("<div style='height: 1px; width: 100px; background: #D4AF37; margin-bottom: 30px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height: 1px; width: 60px; background: #D4AF37; margin-bottom: 30px;'></div>", unsafe_allow_html=True)
 
         # Control Panel
         with st.container(border=True):
@@ -361,17 +352,16 @@ def main_app():
                 # Custom Aesthetic Spinner
                 spinner_ph = st.empty()
                 spinner_ph.markdown("""
-                    <div style='display: flex; align-items: center; color: #D4AF37;'>
-                        <span style='margin-right: 10px;'>⚡</span> 
-                        <span style='font-family: Cinzel;'>ANALYZING LEGAL CORPUS...</span>
+                    <div style='display: flex; align-items: center; color: #D4AF37; padding: 10px;'>
+                        <span style='margin-right: 12px; font-size: 1.2rem;'>⚡</span> 
+                        <span style='font-family: Cinzel; font-weight: 600; letter-spacing: 1px;'>ANALYZING LEGAL CORPUS...</span>
                     </div>
                 """, unsafe_allow_html=True)
                 
                 # AI Call
                 response = get_gemini_response(
                     query, tone, diff, 
-                    st.session_state.user['institution'],
-                    st.session_state.api_key
+                    st.session_state.user['institution']
                 )
                 
                 spinner_ph.empty() # Remove spinner
@@ -380,7 +370,7 @@ def main_app():
                 st.markdown(response)
                 db.save_message(st.session_state.user['email'], "assistant", response)
 
-                if space != "None" and "Connection Failed" not in response and "Credentials Expired" not in response:
+                if space != "None" and "Connection Failed" not in response:
                     db.save_to_space(st.session_state.user['email'], space, query, response)
                     st.toast(f"Archived to {space}", icon="📂")
 
@@ -394,7 +384,7 @@ def main_app():
     # --- KNOWLEDGE VAULT ---
     elif nav == "Knowledge Vault":
         st.markdown("# KNOWLEDGE VAULT")
-        st.markdown("<div style='height: 1px; width: 100px; background: #D4AF37; margin-bottom: 30px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height: 1px; width: 60px; background: #D4AF37; margin-bottom: 30px;'></div>", unsafe_allow_html=True)
         
         t1, t2, t3 = st.tabs(["📚 RESEARCH", "📝 PAPERS", "🎓 STUDY"])
         
