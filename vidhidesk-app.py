@@ -181,8 +181,9 @@ db = DBHandler()
 
 # --- 4. AI ENGINE (ROBUST MODEL HUNTER) ---
 def get_gemini_response(query, tone, difficulty, institution, api_key):
+    # FALLBACK: If API key is empty string, try using the hardcoded one explicitly
     if not api_key:
-        return "⚠️ **System Error:** API Key is missing. Please add it in the sidebar."
+        api_key = "AIzaSyBXwTtS5c6OsGQ_nI_tR-meZaRBCFZgkGY"
 
     genai.configure(api_key=api_key)
     
@@ -200,22 +201,28 @@ def get_gemini_response(query, tone, difficulty, institution, api_key):
     # Try models in priority order
     models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp']
     
+    last_error = "Unknown Error"
+
     for model_name in models:
         try:
             model = genai.GenerativeModel(model_name)
             response = model.generate_content(f"{sys_instruction}\n\nUSER QUERY: {query}")
             return response.text # Success
-        except Exception:
+        except Exception as e:
+            last_error = str(e)
             continue # Try next
 
-    return "❌ **Connection Failed:** Could not reach Google AI. Please verify your API Key."
+    # Return the ACTUAL error message from the last attempt for debugging
+    return f"❌ **Connection Failed:** Could not reach Google AI.\n\n**Debug Details:** {last_error}"
 
 # --- 5. UI COMPONENTS ---
 
 # Session Init
 if "user" not in st.session_state: st.session_state.user = None
-# HARDCODED API KEY INTEGRATION
-if "api_key" not in st.session_state: 
+
+# HARDCODED API KEY INTEGRATION (FORCE UPDATE)
+# We check if it is missing OR empty, then force fill it.
+if "api_key" not in st.session_state or not st.session_state.api_key: 
     st.session_state.api_key = "AIzaSyBXwTtS5c6OsGQ_nI_tR-meZaRBCFZgkGY"
 
 def login_page():
@@ -252,7 +259,9 @@ def main_app():
         st.markdown("#### 🔑 API Key")
         # Pre-filled API Key from Session State
         api_key_input = st.text_input("Gemini API Key", type="password", value=st.session_state.api_key, label_visibility="collapsed")
-        if api_key_input: st.session_state.api_key = api_key_input
+        # If user manually changes it, update session state
+        if api_key_input: 
+            st.session_state.api_key = api_key_input
 
         st.markdown("---")
         if st.button("Terminate Session"):
@@ -289,15 +298,18 @@ def main_app():
             with st.chat_message("assistant", avatar="⚖️"):
                 # Custom Spinner
                 with st.spinner("Consulting Legal Archives..."):
+                    # Use the key from session state, fallback to hardcoded if empty
+                    current_key = st.session_state.api_key if st.session_state.api_key else "AIzaSyBXwTtS5c6OsGQ_nI_tR-meZaRBCFZgkGY"
+                    
                     response = get_gemini_response(
                         query, tone, diff, 
                         st.session_state.user['institution'], 
-                        st.session_state.api_key
+                        current_key
                     )
                     st.markdown(response)
                     db.save_message(st.session_state.user['email'], "assistant", response)
 
-                    if space != "None":
+                    if space != "None" and "Connection Failed" not in response:
                         db.save_to_space(st.session_state.user['email'], space, query, response)
                         st.toast(f"Archived to {space}", icon="📂")
 
