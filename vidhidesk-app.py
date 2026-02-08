@@ -280,30 +280,41 @@ def get_ai_response(query, tone, difficulty, context="general"):
     3. Structure with Markdown (Headers, Bullets).
     """
 
-    # PRIORITY LIST
-    candidate_models = [
-        "gemini-1.5-flash",
-        "gemini-1.5-pro",
-        "gemini-2.0-flash-exp",
-        "gemini-pro"  # Generic alias
-    ]
-
-    errors = []
+    # --- DYNAMIC MODEL SELECTOR (Prevents 404s) ---
+    target_model = None
     
-    for model_name in candidate_models:
-        try:
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content(prompt)
-            return response.text
-        except Exception as e:
-            errors.append(f"{model_name}: {str(e)}")
-            continue
-            
-    # If all models fail, show the error details to the user
-    error_msg = "System Error: Unable to connect to Google Gemini.\n\n**Debug Details:**\n"
-    for err in errors:
-        error_msg += f"- {err}\n"
-    return error_msg
+    try:
+        # Ask Google which models are actually available to this API key
+        available_models = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                available_models.append(m.name)
+        
+        # Priority Logic: Prefer Flash -> Pro -> Legacy
+        # We check if the name is IN the list from Google
+        if any('gemini-1.5-flash' in m for m in available_models):
+             target_model = 'gemini-1.5-flash'
+        elif any('gemini-1.5-pro' in m for m in available_models):
+             target_model = 'gemini-1.5-pro'
+        elif any('gemini-pro' in m for m in available_models):
+             target_model = 'gemini-pro'
+        elif len(available_models) > 0:
+             # Fallback to whatever is available
+             target_model = available_models[0].name if hasattr(available_models[0], 'name') else available_models[0]
+        else:
+            return "Error: No text generation models found for your API Key."
+
+    except Exception as e:
+        # If listing fails, fallback to hardcoded Flash and hope for the best
+        target_model = "gemini-1.5-flash"
+
+    # Execute
+    try:
+        model = genai.GenerativeModel(target_model)
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"Connection Error ({target_model}): {str(e)}"
 
 # --- PAGES ---
 
