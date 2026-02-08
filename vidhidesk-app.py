@@ -43,7 +43,7 @@ st.markdown("""
     .vidhi-title {
         font-family: 'Cinzel', serif;
         font-weight: 700;
-        font-size: 3.5rem;
+        font-size: 4rem; /* Increased size */
         text-align: center;
         margin-bottom: 0;
         /* Smooth Liquid Gold Gradient */
@@ -53,7 +53,8 @@ st.markdown("""
         background-clip: text;
         color: transparent;
         text-shadow: 0px 4px 10px rgba(0,0,0,0.5);
-        letter-spacing: 2px;
+        letter-spacing: 4px;
+        white-space: nowrap; /* PREVENTS WRAPPING/QUANTIZING */
     }
     
     h1, h2, h3 {
@@ -126,7 +127,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 3. CONFIGURATION & CREDENTIALS ---
-# Specific Key provided by user
+# PRIMARY KEY
 INTERNAL_API_KEY = "AIzaSyCW3LoC7mL4nS9BmMIRjIhS4ZBFp1jUq7E"
 
 INSTITUTIONS = sorted([
@@ -233,10 +234,14 @@ class DBHandler:
 
 db = DBHandler()
 
-# --- 5. AI ENGINE (FIXED STABILITY) ---
-def get_gemini_response(query, tone, difficulty, institution):
-    # Use Hardcoded Key
-    genai.configure(api_key=INTERNAL_API_KEY)
+# --- 5. AI ENGINE (FIXED) ---
+def get_gemini_response(query, tone, difficulty, institution, passed_key):
+    # FORCE USE of internal key if passed key is empty or invalid format
+    api_key = passed_key
+    if not api_key or len(api_key) < 10:
+        api_key = INTERNAL_API_KEY
+
+    genai.configure(api_key=api_key)
     
     sys_instruction = f"""
     ROLE: You are VidhiDesk, an elite legal research assistant for {institution}.
@@ -250,7 +255,6 @@ def get_gemini_response(query, tone, difficulty, institution):
     """
 
     # STABILITY FIX: Only use the standard stable models. 
-    # Removed 'flash-exp' which causes 404s on many keys.
     models = ['gemini-1.5-flash', 'gemini-1.5-pro']
     
     last_error = ""
@@ -271,8 +275,9 @@ def get_gemini_response(query, tone, difficulty, institution):
 if "user" not in st.session_state: st.session_state.user = None
 
 def login_page():
-    # Centered Login with Fixed Title Styling
-    c1, c2, c3 = st.columns([1, 0.6, 1])
+    # Centered Login with FIXED COLUMN RATIOS to prevent text breaking
+    # Changed from [1, 0.6, 1] to [1, 2, 1] to give the title breathing room
+    c1, c2, c3 = st.columns([1, 2, 1])
     with c2:
         st.markdown("<br><br>", unsafe_allow_html=True)
         # Using CSS class 'vidhi-title' defined above for smooth rendering
@@ -306,17 +311,10 @@ def main_app():
         nav = st.radio("SYSTEM MODULES", ["Research Core", "Knowledge Vault"], label_visibility="collapsed")
         
         st.markdown("---")
-        # Status Indicator
-        st.markdown(f"""
-        <div style='border: 1px solid #333; padding: 12px; border-radius: 8px; background: #080808;'>
-            <div style='display:flex; align-items:center; margin-bottom:5px;'>
-                <span style='color: #4CAF50; font-size: 1.2rem; margin-right: 8px;'>●</span> 
-                <span style='color: #EEE; font-weight:600;'>System Online</span>
-            </div>
-            <div style='font-size: 0.7rem; color: #666;'>AI Model: Gemini 1.5</div>
-            <div style='font-size: 0.7rem; color: #666;'>Latency: Optimal</div>
-        </div>
-        """, unsafe_allow_html=True)
+        # Hidden API Key Input (Auto-filled with internal key logic)
+        # Only show if user explicitly needs to override
+        with st.expander("System Config", expanded=False):
+             user_api_key = st.text_input("Override API Key", type="password")
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("TERMINATE UPLINK"):
@@ -361,7 +359,8 @@ def main_app():
                 # AI Call
                 response = get_gemini_response(
                     query, tone, diff, 
-                    st.session_state.user['institution']
+                    st.session_state.user['institution'],
+                    user_api_key if 'user_api_key' in locals() and user_api_key else ""
                 )
                 
                 spinner_ph.empty() # Remove spinner
