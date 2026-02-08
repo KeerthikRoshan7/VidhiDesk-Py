@@ -280,26 +280,30 @@ def get_ai_response(query, tone, difficulty, context="general"):
     3. Structure with Markdown (Headers, Bullets).
     """
 
-    # PRIORITY LIST: Try models in this order. 
-    # This prevents the '404 gemini-pro not found' error by trying working models first.
+    # PRIORITY LIST
     candidate_models = [
         "gemini-1.5-flash",
         "gemini-1.5-pro",
-        "gemini-2.0-flash-exp", # For users with beta access
-        "gemini-1.0-pro"        # Legacy fallback
+        "gemini-2.0-flash-exp",
+        "gemini-pro"  # Generic alias
     ]
 
+    errors = []
+    
     for model_name in candidate_models:
         try:
             model = genai.GenerativeModel(model_name)
             response = model.generate_content(prompt)
             return response.text
         except Exception as e:
-            # If this model fails (e.g., 404 or Over Quota), silently try the next one
+            errors.append(f"{model_name}: {str(e)}")
             continue
             
-    # If all models fail
-    return "System Error: Unable to connect to Google Gemini. Please check your API Key or try again later."
+    # If all models fail, show the error details to the user
+    error_msg = "System Error: Unable to connect to Google Gemini.\n\n**Debug Details:**\n"
+    for err in errors:
+        error_msg += f"- {err}\n"
+    return error_msg
 
 # --- PAGES ---
 
