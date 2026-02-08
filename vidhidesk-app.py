@@ -1,9 +1,17 @@
 import streamlit as st
-from google import genai # NEW SDK
+import google.generativeai as genai
 import sqlite3
 import hashlib
 import time
+import warnings
 from datetime import datetime
+
+# --- 0. SUPPRESS WARNINGS ---
+# This kills the "support has ended" message from Google's library
+warnings.filterwarnings("ignore")
+import os
+os.environ["GRPC_VERBOSITY"] = "ERROR"
+os.environ["GLOG_minloglevel"] = "2"
 
 # --- 1. APP CONFIGURATION ---
 st.set_page_config(
@@ -39,7 +47,7 @@ st.markdown("""
         border-right: 1px solid #222;
     }
     
-    /* TYPOGRAPHY - TITLE FIX */
+    /* TITLE FIX */
     .vidhi-title-container {
         display: flex;
         justify-content: center;
@@ -47,7 +55,6 @@ st.markdown("""
         width: 100%;
         padding: 20px 0;
     }
-    
     .vidhi-title {
         font-family: 'Cinzel', serif;
         font-weight: 700;
@@ -66,16 +73,10 @@ st.markdown("""
         line-height: 1.2;
     }
     
-    h1, h2, h3 {
-        color: #D4AF37 !important;
-        font-family: 'Cinzel', serif;
-    }
-    
-    p, label, span, div {
-        color: #B0B0B0;
-    }
+    h1, h2, h3 { color: #D4AF37 !important; font-family: 'Cinzel', serif; }
+    p, label, span, div { color: #B0B0B0; }
 
-    /* BUTTONS - GOLD FOIL STYLE */
+    /* BUTTONS */
     .stButton > button {
         background: linear-gradient(145deg, #B8860B, #8A6E0B);
         color: #FFFFFF;
@@ -233,11 +234,11 @@ class DBHandler:
 
 db = DBHandler()
 
-# --- 5. AI ENGINE (NEW GOOGLE GENAI SDK) ---
+# --- 5. AI ENGINE (STABLE & PROVEN) ---
 def get_gemini_response(query, tone, difficulty, institution):
-    # Initialize Client with New SDK
+    # FORCE INTERNAL KEY
     try:
-        client = genai.Client(api_key=INTERNAL_API_KEY)
+        genai.configure(api_key=INTERNAL_API_KEY)
     except Exception as e:
         return f"❌ **Config Error:** {str(e)}"
     
@@ -252,18 +253,20 @@ def get_gemini_response(query, tone, difficulty, institution):
     4. FORMAT using Markdown: Use '### Headers', '**Bold**' for emphasis, and '>' for blockquotes.
     """
 
-    # NEW SDK MODEL LIST (Based on your screenshot)
-    # We use 'generate_content' from the 'models' attribute
-    models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']
+    # MODELS CONFIRMED IN YOUR SCREENSHOT
+    # We use these exact names because we know they exist for your key.
+    models_to_try = [
+        'gemini-2.0-flash', 
+        'gemini-2.5-flash',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro'
+    ]
     
     last_error = ""
-    for model_name in models:
+    for model_name in models_to_try:
         try:
-            # New SDK Syntax
-            response = client.models.generate_content(
-                model=model_name,
-                contents=sys_instruction + "\n\nUSER QUERY: " + query
-            )
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(f"{sys_instruction}\n\nUSER QUERY: {query}")
             return response.text 
         except Exception as e:
             last_error = str(e)
