@@ -1,485 +1,266 @@
 import streamlit as st
 import google.generativeai as genai
-import time
-import uuid
-import hashlib
 import sqlite3
-import pandas as pd
+import hashlib
+import time
 from datetime import datetime
 
-# --- CONFIGURATION ---
+# --- 1. APP CONFIGURATION ---
 st.set_page_config(
-    page_title="VidhiDesk | Legal Research Hub",
+    page_title="VidhiDesk | Legal Intelligence",
     page_icon="⚖️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- CUSTOM THEME (Major Black - Minor Purple) ---
-st.markdown("""
-<style>
-    /* 1. GLOBAL STYLES */
-    .stApp {
-        background-color: #050505;
-        color: #E0E0E0;
-    }
-    
-    /* 2. SIDEBAR */
-    section[data-testid="stSidebar"] {
-        background-color: #0a0a0a;
-        border-right: 1px solid #1F1F1F;
-    }
-    section[data-testid="stSidebar"] h1, h2, h3, p, label {
-        color: #D1C4E9 !important;
-    }
+# --- 2. SESSION STATE SETUP ---
+if "user" not in st.session_state: st.session_state.user = None
+if "auth_page" not in st.session_state: st.session_state.auth_page = "login"
+if "generated_response" not in st.session_state: st.session_state.generated_response = False
 
-    /* 3. INPUT FIELDS */
-    .stTextInput > div > div > input, 
-    .stSelectbox > div > div > div, 
-    .stChatInput textarea {
-        background-color: #121212;
-        color: #FFFFFF;
-        border: 1px solid #2D1B4E;
-        border-radius: 12px;
-    }
-    .stTextInput > div > div > input:focus,
-    .stChatInput textarea:focus {
-        border-color: #BB86FC;
-        box-shadow: 0 0 10px rgba(187, 134, 252, 0.2);
-    }
-
-    /* 4. BUTTONS */
-    .stButton > button {
-        background: linear-gradient(135deg, #6200EA 0%, #3700B3 100%);
-        color: white;
-        border: none;
-        border-radius: 20px;
-        font-weight: 500;
-        padding: 0.5rem 1.2rem;
-        transition: transform 0.2s;
-    }
-    .stButton > button:hover {
-        transform: scale(1.02);
-        box-shadow: 0 4px 12px rgba(98, 0, 234, 0.4);
-    }
-    button[kind="secondary"] {
-        background: transparent;
-        border: 1px solid #BB86FC;
-    }
-
-    /* 5. CARDS & CONTAINERS */
-    .css-card {
-        background-color: #121212;
-        padding: 25px;
-        border-radius: 16px;
-        border: 1px solid #222;
-        border-left: 4px solid #BB86FC;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    }
-
-    /* 6. CHAT BUBBLES */
-    .chat-container {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-        padding-bottom: 20px;
-    }
-    .msg-row {
-        display: flex;
-        width: 100%;
-    }
-    .msg-row.user {
-        justify-content: flex-end;
-    }
-    .msg-row.ai {
-        justify-content: flex-start;
-    }
-    .chat-bubble {
-        max-width: 80%;
-        padding: 12px 18px;
-        border-radius: 16px;
-        line-height: 1.5;
-        font-size: 1rem;
-        position: relative;
-    }
-    .chat-bubble.user {
-        background-color: #2D1B4E; /* Deep Purple */
-        color: #FFF;
-        border-bottom-right-radius: 2px;
-    }
-    .chat-bubble.ai {
-        background-color: #1E1E1E; /* Dark Grey */
-        color: #E0E0E0;
-        border: 1px solid #333;
-        border-bottom-left-radius: 2px;
-    }
-
-    /* 7. LOADING ANIMATION */
-    .typing {
-        display: flex;
-        gap: 5px;
-        padding: 10px;
-        background: #1E1E1E;
-        border-radius: 12px;
-        width: fit-content;
-        border: 1px solid #333;
-    }
-    .dot {
-        width: 8px;
-        height: 8px;
-        background: #BB86FC;
-        border-radius: 50%;
-        animation: bounce 1.4s infinite ease-in-out both;
-    }
-    .dot:nth-child(1) { animation-delay: -0.32s; }
-    .dot:nth-child(2) { animation-delay: -0.16s; }
-    @keyframes bounce {
-        0%, 80%, 100% { transform: scale(0); }
-        40% { transform: scale(1); }
-    }
-
-    /* HEADERS */
-    h1, h2, h3 { color: #BB86FC !important; }
-</style>
-""", unsafe_allow_html=True)
-
-# --- DATABASE BACKEND (SQLite) ---
-class DatabaseManager:
-    # Use versioned DB to ensure schema updates don't break the app
-    def __init__(self, db_name="vidhidesk_v2.db"):
+# --- 3. DATABASE MANAGEMENT (SQLite) ---
+# We use a single robust class to handle all data.
+class DBHandler:
+    def __init__(self, db_name="vidhidesk_v3.db"):
         self.conn = sqlite3.connect(db_name, check_same_thread=False)
         self.create_tables()
 
     def create_tables(self):
         c = self.conn.cursor()
-        # Users
-        c.execute("""CREATE TABLE IF NOT EXISTS users (
-            email TEXT PRIMARY KEY, password TEXT, name TEXT, institution TEXT, year TEXT, setup_complete BOOLEAN
-        )""")
-        # Spaces
-        c.execute("""CREATE TABLE IF NOT EXISTS spaces (
-            id TEXT PRIMARY KEY, email TEXT, category TEXT, query TEXT, response TEXT, timestamp TEXT
-        )""")
+        # Users Table
+        c.execute('''CREATE TABLE IF NOT EXISTS users 
+                     (email TEXT PRIMARY KEY, password TEXT, name TEXT, institution TEXT, year TEXT)''')
         # Chat History
-        c.execute("""CREATE TABLE IF NOT EXISTS chat_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT, role TEXT, content TEXT, timestamp TEXT
-        )""")
+        c.execute('''CREATE TABLE IF NOT EXISTS chats 
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT, role TEXT, content TEXT, timestamp DATETIME)''')
+        # Spaces (Saved Research)
+        c.execute('''CREATE TABLE IF NOT EXISTS spaces 
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT, category TEXT, query TEXT, response TEXT, timestamp DATETIME)''')
         self.conn.commit()
-        
-        # Default Admin Creation (Robust)
-        try:
-            admin_pw = hashlib.sha256("admin123".encode()).hexdigest()
-            # Check existence first
-            cur = c.execute("SELECT email FROM users WHERE email=?", ("admin@law.edu",))
-            if not cur.fetchone():
-                c.execute("INSERT INTO users (email, password, name, institution, year, setup_complete) VALUES (?, ?, ?, ?, ?, ?)", 
-                         ("admin@law.edu", admin_pw, "Administrator", "VidhiDesk HQ", "Graduate", True))
-                self.conn.commit()
-        except Exception:
-            pass 
 
-    def register(self, email, password):
+    def register(self, email, password, name, institution, year):
         try:
-            pw_hash = hashlib.sha256(password.encode()).hexdigest()
-            self.conn.execute("INSERT INTO users (email, password, name, institution, year, setup_complete) VALUES (?, ?, ?, ?, ?, ?)", 
-                             (email, pw_hash, "New User", "", "", False))
+            hashed_pw = hashlib.sha256(password.encode()).hexdigest()
+            self.conn.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?)", 
+                              (email, hashed_pw, name, institution, year))
             self.conn.commit()
-            return True, "Registered successfully!"
+            return True, "Registration successful! Please log in."
         except sqlite3.IntegrityError:
-            return False, "Email already exists."
+            return False, "Email already registered."
 
     def login(self, email, password):
-        pw_hash = hashlib.sha256(password.encode()).hexdigest()
-        cur = self.conn.execute("SELECT * FROM users WHERE email = ? AND password = ?", (email, pw_hash))
-        row = cur.fetchone()
-        if row:
-            return True, {"email": row[0], "name": row[2], "institution": row[3], "year": row[4], "setup_complete": row[5]}
-        return False, "Invalid credentials."
+        hashed_pw = hashlib.sha256(password.encode()).hexdigest()
+        cur = self.conn.execute("SELECT name, institution, year FROM users WHERE email=? AND password=?", (email, hashed_pw))
+        user = cur.fetchone()
+        if user:
+            return {"email": email, "name": user[0], "institution": user[1], "year": user[2]}
+        return None
 
-    def update_profile(self, email, name, institution, year):
-        self.conn.execute("UPDATE users SET name=?, institution=?, year=?, setup_complete=? WHERE email=?", 
-                         (name, institution, year, True, email))
-        self.conn.commit()
-
-    def save_chat(self, email, role, content):
-        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        self.conn.execute("INSERT INTO chat_history (email, role, content, timestamp) VALUES (?, ?, ?, ?)", 
-                         (email, role, content, ts))
+    def save_message(self, email, role, content):
+        self.conn.execute("INSERT INTO chats (email, role, content, timestamp) VALUES (?, ?, ?, ?)", 
+                          (email, role, content, datetime.now()))
         self.conn.commit()
 
     def get_history(self, email):
-        cur = self.conn.execute("SELECT role, content FROM chat_history WHERE email=? ORDER BY id ASC", (email,))
-        return [{"role": r[0], "content": r[1]} for r in cur.fetchall()]
+        cur = self.conn.execute("SELECT role, content FROM chats WHERE email=? ORDER BY id ASC", (email,))
+        return [{"role": row[0], "content": row[1]} for row in cur.fetchall()]
 
     def clear_history(self, email):
-        self.conn.execute("DELETE FROM chat_history WHERE email=?", (email,))
+        self.conn.execute("DELETE FROM chats WHERE email=?", (email,))
         self.conn.commit()
 
-    def save_space(self, email, category, query, response):
-        id_ = str(uuid.uuid4())
-        ts = datetime.now().strftime("%Y-%m-%d %H:%M")
-        self.conn.execute("INSERT INTO spaces VALUES (?, ?, ?, ?, ?, ?)", (id_, email, category, query, response, ts))
+    def save_to_space(self, email, category, query, response):
+        self.conn.execute("INSERT INTO spaces (email, category, query, response, timestamp) VALUES (?, ?, ?, ?, ?)", 
+                          (email, category, query, response, datetime.now()))
         self.conn.commit()
 
-    def get_spaces(self, email, category):
-        cur = self.conn.execute("SELECT id, query, response, timestamp FROM spaces WHERE email=? AND category=? ORDER BY timestamp DESC", (email, category))
+    def get_space_items(self, email, category):
+        cur = self.conn.execute("SELECT id, query, response, timestamp FROM spaces WHERE email=? AND category=? ORDER BY id DESC", (email, category))
         return [{"id": r[0], "query": r[1], "response": r[2], "timestamp": r[3]} for r in cur.fetchall()]
 
-    def delete_space(self, item_id):
+    def delete_space_item(self, item_id):
         self.conn.execute("DELETE FROM spaces WHERE id=?", (item_id,))
         self.conn.commit()
 
-db = DatabaseManager()
+db = DBHandler()
 
-# --- CONSTANTS ---
-INSTITUTIONS = sorted([
-    "National Law School of India University (NLSIU), Bangalore", "National Law University, Delhi (NLUD)",
-    "NALSAR University of Law, Hyderabad", "The West Bengal National University of Juridical Sciences (WBNUJS)",
-    "National Law University, Jodhpur (NLUJ)", "Hidayatullah National Law University (HNLU), Raipur",
-    "Gujarat National Law University (GNLU), Gandhinagar", "Dr. Ram Manohar Lohiya National Law University (RMLNLU)",
-    "Rajiv Gandhi National University of Law (RGNUL), Patiala", "Chanakya National Law University (CNLU), Patna",
-    "National University of Advanced Legal Studies (NUALS), Kochi", "National Law University Odisha (NLUO)",
-    "National University of Study and Research in Law (NUSRL), Ranchi", "National Law University and Judicial Academy (NLUJAA)",
-    "Damodaram Sanjivayya National Law University (DSNLU)", "Tamil Nadu National Law University (TNNLU)",
-    "Maharashtra National Law University (MNLU), Mumbai", "Maharashtra National Law University (MNLU), Nagpur",
-    "Maharashtra National Law University (MNLU), Aurangabad", "Himachal Pradesh National Law University (HPNLU)",
-    "Dharmashastra National Law University (DNLU), Jabalpur", "Dr. B.R. Ambedkar National Law University (DBRANLU)",
-    "National Law University, Tripura (NLUT)", "GNLU Silvassa Campus", "Dr. Rajendra Prasad National Law University",
-    "Faculty of Law, University of Delhi (DU)", "Faculty of Law, Banaras Hindu University (BHU)",
-    "Faculty of Law, Aligarh Muslim University (AMU)", "Faculty of Law, Jamia Millia Islamia",
-    "Government Law College (GLC), Mumbai", "Symbiosis Law School (SLS), Pune", "Symbiosis Law School (SLS), Noida",
-    "School of Law, Christ University", "Army Institute of Law (AIL), Mohali", "Lloyd Law College",
-    "KIIT School of Law", "Saveetha School of Law", "School of Law, SASTRA Deemed University",
-    "School of Law, UPES", "Institute of Law, Nirma University", "Amity Law School",
-    "VIT School of Law (VITSOL)", "M.I.E.T. Engineering College (Tech Law Dept)", "Vel Tech School of Law",
-    "Dr. Ambedkar Government Law College, Chennai"
-])
+# --- 4. AI ENGINE ---
+def get_gemini_response(query, tone, difficulty, api_key):
+    if not api_key:
+        return "⚠️ **System Error:** API Key is missing. Please add it in the sidebar."
 
-# --- SESSION & STATE ---
-if 'user' not in st.session_state: st.session_state.user = None
-if 'page' not in st.session_state: st.session_state.page = 'login'
-if 'api_key' not in st.session_state: 
-    st.session_state.api_key = st.secrets.get("GEMINI_API_KEY", "")
-
-# --- AI ENGINE ---
-def get_ai_response(query, tone, difficulty, context="general"):
-    if not st.session_state.api_key:
-        return "⚠️ Please enter your Gemini API Key in the sidebar."
+    genai.configure(api_key=api_key)
     
-    genai.configure(api_key=st.session_state.api_key)
+    # SYSTEM PROMPT
+    sys_instruction = f"""
+    You are VidhiDesk, an expert Indian legal research assistant.
+    TONE: {tone}
+    COMPLEXITY: {difficulty}
     
-    prompt = f"""
-    Act as VidhiDesk, an Indian Legal Research Assistant.
-    Query: {query}
-    Tone: {tone} | Difficulty: {difficulty} | Context: {context}
-    
-    Mandate:
-    1. Cite specific Articles/Sections of Indian Acts (Constitution, BNS, IPC, etc).
-    2. Reference relevant Supreme Court Case Laws if applicable.
-    3. Structure with Markdown (Headers, Bullets).
+    GUIDELINES:
+    1. STRICTLY reference Indian Laws (IPC, BNS, Constitution, CrPC, BNSS).
+    2. Cite relevant Supreme Court or High Court judgements if applicable.
+    3. Use formatting (Bold sections, Bullet points) for readability.
+    4. If the query is non-legal, politely steer it back to law.
     """
 
-    # --- DYNAMIC MODEL SELECTOR (Prevents 404s) ---
-    target_model = None
-    
+    # We ONLY use the stable 1.5 models. No experimental/deprecated aliases.
     try:
-        # Ask Google which models are actually available to this API key
-        available_models = []
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                available_models.append(m.name)
-        
-        # Priority Logic: Prefer Flash -> Pro -> Legacy
-        # We check if the name is IN the list from Google
-        if any('gemini-1.5-flash' in m for m in available_models):
-             target_model = 'gemini-1.5-flash'
-        elif any('gemini-1.5-pro' in m for m in available_models):
-             target_model = 'gemini-1.5-pro'
-        elif any('gemini-pro' in m for m in available_models):
-             target_model = 'gemini-pro'
-        elif len(available_models) > 0:
-             # Fallback to whatever is available
-             target_model = available_models[0].name if hasattr(available_models[0], 'name') else available_models[0]
-        else:
-            return "Error: No text generation models found for your API Key."
-
-    except Exception as e:
-        # If listing fails, fallback to hardcoded Flash and hope for the best
-        target_model = "gemini-1.5-flash"
-
-    # Execute
-    try:
-        model = genai.GenerativeModel(target_model)
-        response = model.generate_content(prompt)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(f"{sys_instruction}\n\nUSER QUERY: {query}")
         return response.text
     except Exception as e:
-        return f"Connection Error ({target_model}): {str(e)}"
+        # Fallback to Pro if Flash fails
+        try:
+            model = genai.GenerativeModel('gemini-1.5-pro')
+            response = model.generate_content(f"{sys_instruction}\n\nUSER QUERY: {query}")
+            return response.text
+        except Exception as e2:
+            return f"❌ **Connection Error:** Could not reach Google AI. \nError Details: {str(e2)}"
 
-# --- PAGES ---
+# --- 5. UI COMPONENTS ---
 
-def page_login():
-    st.markdown("<div style='text-align: center; margin-top: 50px;'><h1 style='font-size: 3.5rem;'>⚖️ VidhiDesk</h1><p style='color:#888;'>Your Intelligent Legal Research Hub</p></div>", unsafe_allow_html=True)
-    
-    c1, c2, c3 = st.columns([1, 1.2, 1])
+def login_screen():
+    c1, c2, c3 = st.columns([1, 0.8, 1])
     with c2:
-        st.markdown("<div class='css-card'>", unsafe_allow_html=True)
-        tab_login, tab_reg = st.tabs(["Login", "Register"])
+        st.markdown("### ⚖️ VidhiDesk Login")
         
-        with tab_login:
-            email = st.text_input("Email", key="l_email")
-            pwd = st.text_input("Password", type="password", key="l_pwd")
-            if st.button("Access Hub", use_container_width=True):
-                success, data = db.login(email, pwd)
-                if success:
-                    st.session_state.user = data
-                    st.session_state.page = "home" if data['setup_complete'] else "profile"
+        if st.session_state.auth_page == "login":
+            email = st.text_input("Email", key="login_email")
+            password = st.text_input("Password", type="password", key="login_pass")
+            
+            if st.button("Log In", type="primary", use_container_width=True):
+                user = db.login(email, password)
+                if user:
+                    st.session_state.user = user
                     st.rerun()
-                else: st.error(data)
-                
-        with tab_reg:
-            r_email = st.text_input("Email", key="r_email")
-            r_pwd = st.text_input("Password", type="password", key="r_pwd")
-            if st.button("Create Account", use_container_width=True):
-                if len(r_pwd) < 6: st.warning("Password too short")
                 else:
-                    success, msg = db.register(r_email, r_pwd)
-                    if success: st.success(msg)
-                    else: st.error(msg)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-def page_profile():
-    st.markdown("## 👤 Profile Setup")
-    with st.container():
-        st.markdown("<div class='css-card'>", unsafe_allow_html=True)
-        name = st.text_input("Full Name")
-        inst = st.selectbox("Institution", INSTITUTIONS)
-        year = st.selectbox("Year of Study", ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year", "LLM", "PhD"])
-        
-        if st.button("Complete Setup"):
-            if name:
-                db.update_profile(st.session_state.user['email'], name, inst, year)
-                st.session_state.user.update({"name": name, "institution": inst, "year": year})
-                st.session_state.page = "home"
+                    st.error("Invalid credentials.")
+            
+            st.markdown("---")
+            if st.button("Create Account"):
+                st.session_state.auth_page = "register"
                 st.rerun()
-            else: st.warning("Name required")
-        st.markdown("</div>", unsafe_allow_html=True)
 
-def sidebar():
+        else: # Register Page
+            st.markdown("#### New Researcher Profile")
+            r_name = st.text_input("Full Name")
+            r_email = st.text_input("Email")
+            r_pass = st.text_input("Password", type="password")
+            
+            # Top Indian Law Schools list
+            institutes = [
+                "NLSIU Bangalore", "NLU Delhi", "NALSAR Hyderabad", "WBNUJS Kolkata", 
+                "NLU Jodhpur", "GNLU Gandhinagar", "Symbiosis Law School", "Christ University",
+                "Faculty of Law, DU", "GLC Mumbai", "TNNLU Tiruchirappalli", "Other"
+            ]
+            r_inst = st.selectbox("Institution", institutes)
+            r_year = st.selectbox("Year", ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year", "Graduate"])
+            
+            if st.button("Register", type="primary", use_container_width=True):
+                success, msg = db.register(r_email, r_pass, r_name, r_inst, r_year)
+                if success:
+                    st.success(msg)
+                    time.sleep(1)
+                    st.session_state.auth_page = "login"
+                    st.rerun()
+                else:
+                    st.error(msg)
+            
+            if st.button("Back to Login"):
+                st.session_state.auth_page = "login"
+                st.rerun()
+
+def main_app():
+    # --- SIDEBAR ---
     with st.sidebar:
-        st.markdown(f"### {st.session_state.user['name']}")
-        st.caption(st.session_state.user['institution'])
+        st.header(f"Welcome, {st.session_state.user['name'].split()[0]}")
+        st.caption(f"🎓 {st.session_state.user['institution']}")
         st.markdown("---")
         
-        if st.button("🏠 Home", use_container_width=True): st.session_state.page = "home"; st.rerun()
-        if st.button("🗂️ Spaces", use_container_width=True): st.session_state.page = "spaces"; st.rerun()
+        nav = st.radio("Navigation", ["Research Hub", "My Spaces", "Settings"], label_visibility="collapsed")
+        
+        st.markdown("### 🔑 API Access")
+        api_key = st.text_input("Gemini API Key", type="password", help="Get key from aistudio.google.com")
         
         st.markdown("---")
-        key_input = st.text_input("Gemini API Key", value=st.session_state.api_key, type="password")
-        if key_input: st.session_state.api_key = key_input
-        
-        if st.button("Logout", type="secondary"):
+        if st.button("Log Out"):
             st.session_state.user = None
-            st.session_state.page = "login"
             st.rerun()
 
-def page_home():
-    st.markdown("## 🏛️ Research Assistant")
-    
-    # Settings
-    with st.expander("⚙️ Parameters", expanded=False):
-        c1, c2, c3 = st.columns(3)
-        with c1: tone = st.selectbox("Tone", ["Informative", "Academic", "Casual"])
-        with c2: diff = st.selectbox("Difficulty", ["Simple", "Intermediate", "Bare Act"])
-        with c3: space = st.selectbox("Auto-Save", ["None", "Research", "Paper", "Study"])
-
-    # History Logic
-    email = st.session_state.user['email']
-    history = db.get_history(email)
-    
-    # 1. Display Chat History
-    for msg in history:
-        css_class = "user" if msg['role'] == "user" else "ai"
-        st.markdown(f"""
-            <div class='msg-row {css_class}'>
-                <div class='chat-bubble {css_class}'>
-                    {msg['content']}
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    # 2. Handle Input
-    if query := st.chat_input("Ask about Indian Laws, Sections, or Case Laws..."):
-        # Save User Msg
-        db.save_chat(email, "user", query)
-        st.rerun()
-
-    # 3. Process Pending Response (If last msg was user)
-    if history and history[-1]['role'] == "user":
-        latest_query = history[-1]['content']
+    # --- PAGE ROUTING ---
+    if nav == "Research Hub":
+        st.title("🏛️ Legal Research Assistant")
         
-        # Render Loading Animation
-        st.markdown("""
-            <div class='msg-row ai'>
-                <div class='typing'>
-                    <div class='dot'></div><div class='dot'></div><div class='dot'></div>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        # Generate
-        response = get_ai_response(latest_query, tone, diff)
-        
-        # Save & Refresh
-        db.save_chat(email, "ai", response)
-        if space != "None":
-            db.save_space(email, space, latest_query, response)
-            st.toast(f"Saved to {space}!", icon="💾")
-        st.rerun()
+        # Controls
+        with st.expander("⚙️ Search Configuration", expanded=True):
+            c1, c2, c3 = st.columns(3)
+            tone = c1.select_slider("Tone", options=["Casual", "Informative", "Academic"], value="Academic")
+            diff = c2.select_slider("Complexity", options=["Simple", "Intermediate", "Bare Act"], value="Intermediate")
+            space = c3.selectbox("Auto-save to Space", ["None", "Research", "Paper", "Study"])
 
-    # Clear Button
-    if history:
-        if st.button("Clear Chat", type="secondary"):
-            db.clear_history(email)
+        # Chat Interface (Native Streamlit)
+        history = db.get_history(st.session_state.user['email'])
+        
+        # 1. Render History
+        for msg in history:
+            avatar = "🧑‍⚖️" if msg['role'] == "user" else "🤖"
+            with st.chat_message(msg['role'], avatar=avatar):
+                st.markdown(msg['content'])
+
+        # 2. Input
+        if query := st.chat_input("Ask about Indian Law (e.g., 'Analyze Article 21')..."):
+            # Display User Message
+            with st.chat_message("user", avatar="🧑‍⚖️"):
+                st.markdown(query)
+            db.save_message(st.session_state.user['email'], "user", query)
+
+            # Generate AI Response
+            with st.chat_message("assistant", avatar="🤖"):
+                message_placeholder = st.empty()
+                message_placeholder.markdown("Checking Case Laws... ⏳")
+                
+                response = get_gemini_response(query, tone, diff, api_key)
+                
+                message_placeholder.markdown(response)
+                db.save_message(st.session_state.user['email'], "assistant", response)
+
+                if space != "None":
+                    db.save_to_space(st.session_state.user['email'], space, query, response)
+                    st.toast(f"Saved to {space} Space", icon="📂")
+
+        # Clear Chat
+        if st.button("Start New Chat", type="secondary"):
+            db.clear_history(st.session_state.user['email'])
             st.rerun()
 
-def page_spaces():
-    st.markdown("## 🗂️ Knowledge Spaces")
-    email = st.session_state.user['email']
-    
-    tabs = st.tabs(["📚 Research", "📝 Paper", "🎓 Study"])
-    cats = ["Research", "Paper", "Study"]
-    
-    for tab, cat in zip(tabs, cats):
-        with tab:
-            items = db.get_spaces(email, cat)
-            if items:
-                # Export
-                report_text = f"VidhiDesk {cat} Report\nGenerated: {datetime.now()}\n\n"
-                for i in items:
-                    report_text += f"Q: {i['query']}\nA: {i['response']}\n{'-'*40}\n\n"
-                
-                st.download_button(f"📥 Download {cat} Report", report_text, file_name=f"{cat}_Report.txt")
-                
-                # List Items
-                for item in items:
-                    with st.expander(f"📄 {item['query'][:80]}...", expanded=False):
-                        st.markdown(item['response'])
-                        st.caption(f"Saved: {item['timestamp']}")
-                        if st.button("Delete", key=item['id']):
-                            db.delete_space(item['id'])
-                            st.rerun()
-            else:
-                st.info(f"No items in {cat} space.")
+    elif nav == "My Spaces":
+        st.title("🗂️ Knowledge Spaces")
+        
+        tab1, tab2, tab3 = st.tabs(["📚 Research", "📝 Paper", "🎓 Study"])
+        categories = ["Research", "Paper", "Study"]
+        
+        for tab, cat in zip([tab1, tab2, tab3], categories):
+            with tab:
+                items = db.get_space_items(st.session_state.user['email'], cat)
+                if not items:
+                    st.info(f"No research saved in {cat} yet.")
+                else:
+                    for item in items:
+                        with st.expander(f"📄 {item['query'][:60]}..."):
+                            st.markdown(item['response'])
+                            st.caption(f"Saved: {item['timestamp']}")
+                            if st.button("Delete Note", key=f"del_{item['id']}"):
+                                db.delete_space_item(item['id'])
+                                st.rerun()
 
-# --- ROUTER ---
-if st.session_state.page == "login":
-    page_login()
-elif st.session_state.page == "profile":
-    page_profile()
-elif st.session_state.user:
-    sidebar()
-    if st.session_state.page == "home": page_home()
-    elif st.session_state.page == "spaces": page_spaces()
-else:
-    page_login()
+    elif nav == "Settings":
+        st.title("Settings")
+        st.write("User Profile Management coming soon.")
+
+# --- 6. MAIN EXECUTION ---
+if __name__ == "__main__":
+    if st.session_state.user:
+        main_app()
+    else:
+        login_screen()
