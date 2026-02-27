@@ -33,7 +33,7 @@ if st.session_state.theme == "dark":
     t_subtext = "#94A3B8"
     t_border = "rgba(212, 175, 55, 0.2)"
     t_input_bg = "#0F0F11"
-    t_chat_bg = "rgba(255, 255, 255, 0.03)"
+    t_chat_bg = "rgba(255, 255, 255, 0.02)"
 else:
     t_bg = "#F4F6F9"
     t_container = "#FFFFFF"
@@ -41,7 +41,7 @@ else:
     t_subtext = "#64748B"
     t_border = "rgba(212, 175, 55, 0.4)"
     t_input_bg = "#FFFFFF"
-    t_chat_bg = "rgba(0, 0, 0, 0.03)"
+    t_chat_bg = "rgba(0, 0, 0, 0.02)"
 
 st.markdown(f"""
 <style>
@@ -70,6 +70,12 @@ st.markdown(f"""
     }}
     .vidhi-subtitle {{ color: {t_subtext}; font-size: 0.8rem; letter-spacing: 4px; text-transform: uppercase; }}
     p, label, span, div {{ color: {t_text}; }}
+
+    /* Custom Scrollbars for Chat Container */
+    ::-webkit-scrollbar {{ width: 6px; height: 6px; }}
+    ::-webkit-scrollbar-track {{ background: transparent; }}
+    ::-webkit-scrollbar-thumb {{ background: rgba(212, 175, 55, 0.5); border-radius: 4px; }}
+    ::-webkit-scrollbar-thumb:hover {{ background: rgba(212, 175, 55, 0.8); }}
 
     div[data-testid="InputInstructions"] {{ display: none !important; }}
     div[data-baseweb="select"] {{ cursor: pointer !important; }}
@@ -245,7 +251,7 @@ if not st.session_state.user:
         if auto_user:
             st.session_state.user = auto_user
 
-# --- 5. PHASE 1 FEATURES: FILE EXTRACTOR & WORD EXPORT ---
+# --- 5. FILE EXTRACTOR & WORD EXPORT ---
 def extract_pdf_text(uploaded_file):
     try:
         reader = PyPDF2.PdfReader(uploaded_file)
@@ -264,7 +270,6 @@ def generate_word_document(query, response):
     doc.add_paragraph(query)
     
     doc.add_heading('AI Analysis:', level=1)
-    # Basic cleanup to make markdown look okay in plain text Word format
     clean_response = response.replace("**", "").replace("*", "")
     doc.add_paragraph(clean_response)
     
@@ -294,7 +299,6 @@ def get_gemini_stream(query, tone, difficulty, institution, pdf_text=None, audio
     MANDATE: Prioritize Indian Statutes (BNS, BNSS, BSA, Constitution). Cite relevant Case Laws. Use Markdown.
     """
 
-    # Build the prompt contents dynamically
     contents = [sys_instruction]
     
     if pdf_text:
@@ -306,7 +310,6 @@ def get_gemini_stream(query, tone, difficulty, institution, pdf_text=None, audio
     if query:
         contents.append(f"\nUSER QUERY: {query}")
 
-    # Set up configuration (Web Grounding)
     config = types.GenerateContentConfig(temperature=0.3)
     if enable_search:
         config.tools = [{"google_search": {}}]
@@ -430,9 +433,10 @@ def main_app():
 
     if nav == "Research Core":
         st.markdown(f"<h2 style='margin-bottom: 0; color: {t_text} !important;'>RESEARCH CORE</h2>", unsafe_allow_html=True)
-        st.markdown("<div class='temple-divider' style='margin: 10px 0 30px 0; width: 80px; margin-left: 0;'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='temple-divider' style='margin: 10px 0 20px 0; width: 80px; margin-left: 0;'></div>", unsafe_allow_html=True)
 
-        with st.container(border=True):
+        # --- COMPACT RESEARCH PARAMETERS ---
+        with st.expander("⚙️ Advanced Research Parameters & Grounding", expanded=False):
             c1, c2, c3 = st.columns(3)
             with c1:
                 tone = st.selectbox("OUTPUT TONE", ["Casual", "Professional", "Academic"], index=2)
@@ -442,64 +446,71 @@ def main_app():
                 space = st.selectbox("AUTO-ARCHIVE TO", ["None", "Research", "Paper", "Study"])
                 
             st.markdown("---")
-            # --- NEW PHASE 1 FEATURES ---
             sc1, sc2 = st.columns([1, 1])
             with sc1:
+                st.markdown("<br>", unsafe_allow_html=True)
                 enable_search = st.toggle("🌐 Enable Web Grounding (Live Internet Search)")
             with sc2:
-                uploaded_pdf = st.file_uploader("📄 Upload Case File (PDF) for Analysis", type=["pdf"])
+                uploaded_pdf = st.file_uploader("📄 Upload Case File (PDF) for Context", type=["pdf"])
 
-        history = db.get_history(st.session_state.user['email'])
-        for msg in history:
-            avatar = "🧑‍⚖️" if msg['role'] == "user" else "⚖️"
-            with st.chat_message(msg['role'], avatar=avatar):
-                st.markdown(msg['content'])
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # --- FIXED HEIGHT CHATBOX CONTAINER ---
+        # This prevents the page from auto-scrolling globally. Only the chatbox scrolls.
+        chat_box = st.container(height=500, border=False)
+        
+        with chat_box:
+            history = db.get_history(st.session_state.user['email'])
+            for msg in history:
+                avatar = "🧑‍⚖️" if msg['role'] == "user" else "⚖️"
+                with st.chat_message(msg['role'], avatar=avatar):
+                    st.markdown(msg['content'])
 
         # --- AUDIO OR TEXT INPUT ---
         col_text, col_audio = st.columns([0.85, 0.15])
         with col_text:
             query = st.chat_input("Enter legal query, section, or case citation...")
         with col_audio:
-            # Native Streamlit audio input feature
             audio_data = st.audio_input("🎙️")
 
         if query or audio_data:
-            # Show what user asked
-            with st.chat_message("user", avatar="🧑‍⚖️"):
-                if query:
-                    st.markdown(query)
-                if audio_data:
-                    st.audio(audio_data)
-                    if not query: query = "Please analyze this audio recording."
-            
-            # Save User Input
-            db.save_message(st.session_state.user['email'], "user", query)
-
-            # Process AI Response
-            with st.chat_message("assistant", avatar="⚖️"):
-                pdf_extracted_text = None
-                if uploaded_pdf:
-                    with st.spinner("Reading Document..."):
-                        pdf_extracted_text = extract_pdf_text(uploaded_pdf)
+            with chat_box:
+                # Show what user asked
+                with st.chat_message("user", avatar="🧑‍⚖️"):
+                    if query:
+                        st.markdown(query)
+                    if audio_data:
+                        st.audio(audio_data)
+                        if not query: query = "Please analyze this audio recording."
                 
-                audio_bytes = audio_data.getvalue() if audio_data else None
+                db.save_message(st.session_state.user['email'], "user", query)
 
-                stream = get_gemini_stream(
-                    query, tone, diff, 
-                    st.session_state.user['institution'],
-                    pdf_text=pdf_extracted_text,
-                    audio_bytes=audio_bytes,
-                    enable_search=enable_search
-                )
-                
-                full_response = st.write_stream(stream)
-                
-                db.save_message(st.session_state.user['email'], "assistant", full_response)
+                # Process AI Response
+                with st.chat_message("assistant", avatar="⚖️"):
+                    pdf_extracted_text = None
+                    if uploaded_pdf:
+                        with st.spinner("Reading Document..."):
+                            pdf_extracted_text = extract_pdf_text(uploaded_pdf)
+                    
+                    audio_bytes = audio_data.getvalue() if audio_data else None
 
-                if space != "None" and "❌" not in full_response:
-                    db.save_to_space(st.session_state.user['email'], space, query, full_response)
-                    st.toast(f"Archived to {space}", icon="📂")
+                    # Streaming into the fixed chatbox prevents page jumps
+                    stream = get_gemini_stream(
+                        query, tone, diff, 
+                        st.session_state.user['institution'],
+                        pdf_text=pdf_extracted_text,
+                        audio_bytes=audio_bytes,
+                        enable_search=enable_search
+                    )
+                    
+                    full_response = st.write_stream(stream)
+                    db.save_message(st.session_state.user['email'], "assistant", full_response)
 
+                    if space != "None" and "❌" not in full_response:
+                        db.save_to_space(st.session_state.user['email'], space, query, full_response)
+                        st.toast(f"Archived to {space}", icon="📂")
+
+        # Clear Logs Button
         if history:
             c1, c2 = st.columns([0.85, 0.15])
             with c2:
@@ -523,7 +534,6 @@ def main_app():
                         with st.expander(f"📌 {item['timestamp'][:16]} | {item['query'][:60]}..."):
                             st.markdown(item['response'])
                             
-                            # --- NEW PHASE 1 EXPORT FEATURE ---
                             col1, col2 = st.columns([0.2, 0.8])
                             with col1:
                                 if st.button("DELETE RECORD", key=f"del_{item['id']}", type="secondary"):
