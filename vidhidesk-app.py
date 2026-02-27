@@ -604,7 +604,12 @@ def main_app():
             
             facts = st.text_area("Client Facts & Details (Optional if PDF provided)", height=150, placeholder="E.g., Client name is Rahul. Tenant hasn't paid rent of Rs 50,000...")
             
-            uploaded_draft_pdf = st.file_uploader("📄 Upload Reference Document / Old Contract (PDF)", type=["pdf"], key="draft_pdf")
+            # TIER LOGIC APPLIED TO DRAFTING PDFS
+            if st.session_state.user.get('tier') == 'pro':
+                uploaded_draft_pdf = st.file_uploader("📄 Upload Reference Document / Old Contract (PDF)", type=["pdf"], key="draft_pdf")
+            else:
+                st.info("⭐ Upgrade to Pro to draft from existing PDFs")
+                uploaded_draft_pdf = None
             
             if st.button("GENERATE DRAFT", use_container_width=True):
                 if not facts and not uploaded_draft_pdf:
@@ -645,7 +650,12 @@ def main_app():
             
             source_text = st.text_area("Source Text (Optional if PDF provided)", height=150, placeholder="Paste legal document text here...")
             
-            uploaded_trans_pdf = st.file_uploader("📄 Upload Document to Translate (PDF)", type=["pdf"], key="trans_pdf")
+            # TIER LOGIC APPLIED TO TRANSLATION PDFS
+            if st.session_state.user.get('tier') == 'pro':
+                uploaded_trans_pdf = st.file_uploader("📄 Upload Document to Translate (PDF)", type=["pdf"], key="trans_pdf")
+            else:
+                st.info("⭐ Upgrade to Pro to translate whole PDFs")
+                uploaded_trans_pdf = None
             
             if st.button("TRANSLATE", use_container_width=True):
                 if not source_text and not uploaded_trans_pdf:
@@ -674,16 +684,18 @@ def main_app():
                         )
 
     elif nav == "Knowledge Vault":
-        st.markdown(f"<h2 style='margin-bottom: 0; color: {t_text} !important;'>KNOWLEDGE VAULT</h2>", unsafe_allow_html=True)
+        # Dynamic vault title based on workspace
+        st.markdown(f"<h2 style='margin-bottom: 0; color: {t_text} !important;'>KNOWLEDGE VAULT <span style='font-size:0.5em; color:{t_subtext};'>[{st.session_state.current_workspace['name']}]</span></h2>", unsafe_allow_html=True)
         st.markdown("<div class='temple-divider' style='margin: 10px 0 30px 0; width: 80px; margin-left: 0;'></div>", unsafe_allow_html=True)
         
         t1, t2, t3 = st.tabs(["📚 RESEARCH", "📝 PAPERS", "🎓 STUDY"])
         for tab, cat in zip([t1, t2, t3], ["Research", "Paper", "Study"]):
             with tab:
                 st.markdown("<br>", unsafe_allow_html=True)
-                items = db.get_space_items(st.session_state.user['email'], cat)
+                # FETCH ONLY SPACES FROM ACTIVE WORKSPACE
+                items = db.get_space_items(st.session_state.user['email'], cat, workspace_id=st.session_state.current_workspace['id'])
                 if not items:
-                    st.info(f"Sector '{cat}' is empty.", icon="ℹ️")
+                    st.info(f"Sector '{cat}' is empty in this Workspace.", icon="ℹ️")
                 else:
                     for item in items:
                         with st.expander(f"📌 {item['timestamp'][:16]} | {item['query'][:60]}..."):
