@@ -10,255 +10,204 @@ st.set_page_config(
     page_title="VidhiDesk | Legal Intelligence",
     page_icon="⚖️",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
-# --- 2. THEME: OBSIDIAN & SOUTH INDIAN LIQUID GOLD ---
+# --- 2. THEME: ULTIMATE OBSIDIAN & LIQUID GOLD ---
 st.markdown("""
 <style>
     /* IMPORTS */
-    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
 
     /* ANIMATIONS */
     @keyframes fadeInUp {
-        from {opacity: 0; transform: translate3d(0, 20px, 0);}
-        to {opacity: 1; transform: translate3d(0, 0, 0);}
+        from {opacity: 0; transform: translateY(10px);}
+        to {opacity: 1; transform: translateY(0);}
     }
-    @keyframes liquidShimmer {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-    @keyframes pulseGlow {
-        0% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.2); }
-        50% { box-shadow: 0 0 20px rgba(212, 175, 55, 0.6); }
-        100% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.2); }
+    @keyframes subtleGlow {
+        0% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.1); }
+        50% { box-shadow: 0 0 15px rgba(212, 175, 55, 0.3); }
+        100% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.1); }
     }
 
-    /* GLOBAL RESET & INTRICATE BACKGROUND */
+    /* GLOBAL RESET & PREMIUM BACKGROUND */
     .stApp {
-        background-color: #030303;
-        /* Subtle Mandala/Kolam inspired background texture */
-        background-image: 
-            radial-gradient(circle at center, rgba(212, 175, 55, 0.03) 0%, transparent 50%),
-            repeating-radial-gradient(circle at 0 0, transparent 0, #030303 10px), 
-            repeating-linear-gradient(#050505, #050505);
-        color: #E0E0E0;
+        background-color: #050505;
+        color: #E2E8F0;
         font-family: 'Inter', sans-serif;
     }
 
-    /* SIDEBAR */
+    /* HIDE DEFAULT HEADER */
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+    }
+
+    /* SIDEBAR STYLING */
     section[data-testid="stSidebar"] {
-        background-color: #080808;
-        border-right: 2px solid #1a1505;
+        background-color: #0A0A0B !important;
+        border-right: 1px solid rgba(212, 175, 55, 0.15) !important;
     }
     
-    /* TITLE FIX & TEMPLE GOLD TYPOGRAPHY */
+    /* TYPOGRAPHY */
+    h1, h2, h3, h4, h5, h6 {
+        font-family: 'Cinzel', serif !important;
+        color: #FFFFFF !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.05em;
+    }
+    
+    /* TITLES & DIVIDERS */
     .vidhi-title-container {
         width: 100%;
         text-align: center;
-        padding-top: 5vh;
+        padding-top: 3vh;
         padding-bottom: 2rem;
-        position: relative;
     }
     .vidhi-title {
-        font-family: 'Cinzel', serif;
-        font-weight: 700;
-        font-size: clamp(3rem, 6vw, 5rem); 
+        font-size: clamp(2.5rem, 5vw, 4rem); 
         margin: 0 auto;
-        /* Liquid Gold Gradient */
-        background: linear-gradient(45deg, #B38728, #FBF5B7, #DAA520, #FDF5A9, #AA771C);
-        background-size: 200% 200%;
-        animation: liquidShimmer 6s ease infinite;
+        background: linear-gradient(135deg, #E6C27A 0%, #FFF4D2 50%, #D4AF37 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         color: transparent;
-        text-shadow: 2px 4px 15px rgba(212, 175, 55, 0.4);
         letter-spacing: 0.15em; 
-        white-space: nowrap !important; 
+        white-space: nowrap !important;
+        font-weight: 700 !important;
+        text-shadow: 0px 4px 20px rgba(212, 175, 55, 0.15);
     }
-    
-    /* Intricate Underline/Divider */
     .temple-divider {
-        height: 3px;
-        width: 250px;
-        background: linear-gradient(90deg, transparent, #D4AF37, #FFF8DC, #D4AF37, transparent);
+        height: 1px;
+        width: 200px;
+        background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.8), transparent);
         margin: 15px auto;
-        border-radius: 50%;
-        box-shadow: 0 2px 10px rgba(212, 175, 55, 0.5);
     }
-    
     .vidhi-subtitle {
-        color: #A99A75;
-        font-size: clamp(0.7rem, 1.5vw, 0.9rem);
-        letter-spacing: 5px;
+        color: #94A3B8;
+        font-size: 0.8rem;
+        letter-spacing: 4px;
         text-transform: uppercase;
-        margin-top: 10px;
-        font-weight: 600;
+        font-weight: 400;
     }
-    
-    h1, h2, h3 { color: #D4AF37 !important; font-family: 'Cinzel', serif; }
-    p, label, span, div { color: #B0B0B0; }
 
-    /* =========================================
-       UI WIDGET FIXES (DROPDOWNS & SLIDERS)
-       ========================================= */
-       
-    /* Selectbox/Dropdown container styling */
-    div[data-baseweb="select"] > div {
-        background-color: #0A0A0A !important;
-        border: 1px solid #333 !important;
-        color: #D4AF37 !important;
-        border-radius: 6px;
-    }
-    div[data-baseweb="select"] > div:hover {
+    /* RADIO BUTTONS (SIDEBAR NAV) */
+    div[role="radiogroup"] > label > div:first-of-type {
+        background-color: #111 !important;
         border-color: #D4AF37 !important;
     }
+    div[role="radiogroup"] div[data-testid="stMarkdownContainer"] p {
+        font-size: 1rem !important;
+        font-weight: 500 !important;
+        color: #E2E8F0 !important;
+    }
+
+    /* SELECTBOX (DROPDOWNS) - Clean & Sleek */
+    div[data-baseweb="select"] > div {
+        background-color: #0F0F11 !important;
+        border: 1px solid rgba(212, 175, 55, 0.3) !important;
+        color: #E2E8F0 !important;
+        border-radius: 6px !important;
+        transition: all 0.3s ease;
+    }
+    div[data-baseweb="select"] > div:hover, div[data-baseweb="select"] > div:focus-within {
+        border-color: #D4AF37 !important;
+        box-shadow: 0 0 10px rgba(212, 175, 55, 0.15) !important;
+    }
     
-    /* The actual Dropdown Popover Menu */
-    div[data-baseweb="popover"] {
-        background-color: #0A0A0A !important;
-        border: 1px solid #D4AF37 !important;
-        border-radius: 6px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.8) !important;
-    }
-    div[data-baseweb="popover"] ul {
-        background-color: #0A0A0A !important;
-    }
-    div[data-baseweb="popover"] li {
-        color: #E0E0E0 !important;
-        transition: background 0.2s;
-    }
-    /* Dropdown Hover State */
-    div[data-baseweb="popover"] li:hover {
-        background-color: rgba(212, 175, 55, 0.15) !important;
-        color: #D4AF37 !important;
-    }
-
-    /* Slider Track */
-    div[data-baseweb="slider"] > div {
-        background: #222 !important;
-    }
-    /* Filled Slider Track */
-    div[data-baseweb="slider"] > div > div {
-        background: linear-gradient(90deg, #8A6E0B, #D4AF37) !important;
-    }
-    /* Slider Pointer/Thumb */
-    div[data-baseweb="slider"] div[role="slider"] {
-        background-color: #FFDF00 !important;
-        border: 2px solid #FFF !important;
-        box-shadow: 0 0 10px #D4AF37 !important;
-        transform: scale(1.2);
-    }
-    /* Slider Value Labels */
-    div[data-testid="stTickBar"] span {
-        color: #A99A75 !important;
-        font-size: 0.8rem;
-    }
-
-    /* INPUTS */
+    /* INPUTS & CHAT BOX */
     .stTextInput > div > div > input, .stChatInput textarea {
-        background: #080808;
-        border: 1px solid #2A2515;
-        color: #FFF;
-        border-radius: 6px;
-        padding: 10px;
+        background-color: #0F0F11 !important;
+        border: 1px solid rgba(212, 175, 55, 0.3) !important;
+        color: #FFFFFF !important;
+        border-radius: 8px !important;
+        padding: 12px !important;
+        transition: all 0.3s ease;
     }
     .stTextInput > div > div > input:focus, .stChatInput textarea:focus {
-        border-color: #D4AF37;
-        box-shadow: 0 0 12px rgba(212, 175, 55, 0.3);
+        border-color: #D4AF37 !important;
+        box-shadow: 0 0 15px rgba(212, 175, 55, 0.2) !important;
     }
 
-    /* BUTTONS - INTRICATE GOLD FOIL STYLE */
+    /* BUTTONS - ELEGANT GOLD */
     .stButton > button {
-        background: linear-gradient(145deg, #B8860B, #8A6E0B);
-        color: #FFFFFF;
-        font-family: 'Cinzel', serif;
-        font-weight: 600;
-        border: 1px solid #E5C158;
-        border-radius: 4px;
-        padding: 0.7rem 2rem;
-        transition: all 0.3s ease;
+        background: linear-gradient(135deg, #1A1500 0%, #2A2205 100%) !important;
+        color: #D4AF37 !important;
+        font-family: 'Cinzel', serif !important;
+        font-weight: 600 !important;
+        border: 1px solid rgba(212, 175, 55, 0.5) !important;
+        border-radius: 6px !important;
+        padding: 0.6rem 2rem !important;
         text-transform: uppercase;
-        letter-spacing: 2px;
-        box-shadow: inset 0 0 5px rgba(255,255,255,0.2), 0 4px 10px rgba(0,0,0,0.6);
+        letter-spacing: 1.5px;
+        transition: all 0.3s ease !important;
         width: 100%;
-        position: relative;
-        overflow: hidden;
-    }
-    /* Liquid Gold Hover Effect */
-    .stButton > button::after {
-        content: '';
-        position: absolute;
-        top: -50%; left: -50%;
-        width: 200%; height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 60%);
-        opacity: 0;
-        transition: opacity 0.3s;
-    }
-    .stButton > button:hover::after {
-        opacity: 1;
     }
     .stButton > button:hover {
-        transform: translateY(-2px);
-        background: linear-gradient(145deg, #D4AF37, #AA771C);
-        box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
-        border-color: #FFF;
-        color: #FFF;
-    }
-    
-    /* SECONDARY BUTTONS */
-    button[kind="secondary"] {
-        background: transparent !important;
-        border: 1px solid #555 !important;
-        color: #888 !important;
-    }
-    button[kind="secondary"]:hover {
+        background: linear-gradient(135deg, #2A2205 0%, #3D320A 100%) !important;
         border-color: #D4AF37 !important;
-        color: #D4AF37 !important;
+        color: #FFF !important;
+        box-shadow: 0 4px 15px rgba(212, 175, 55, 0.2) !important;
+        transform: translateY(-1px);
     }
 
     /* CHAT BUBBLES */
     .stChatMessage {
-        background-color: rgba(20, 15, 5, 0.4);
-        border: 1px solid #2A2515;
-        border-radius: 8px;
+        background-color: #0A0A0B !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        border-radius: 12px !important;
+        padding: 1.5rem !important;
+        margin-bottom: 1rem !important;
         animation: fadeInUp 0.4s ease-out;
     }
     .stChatMessage[data-testid="stChatMessageAvatar"] {
-        background-color: #D4AF37;
-        color: #000;
-        border-radius: 50%;
-        box-shadow: 0 0 10px rgba(212,175,55,0.4);
+        background-color: #111 !important;
+        border: 1px solid #D4AF37 !important;
+        color: #D4AF37 !important;
     }
     
-    /* EXPANDERS / CARDS */
+    /* CARDS / CONTAINERS */
+    div[data-testid="stContainer"] > div > div > div {
+        background-color: #0A0A0B;
+        border-radius: 10px;
+    }
+    
+    /* EXPANDERS */
     div[data-testid="stExpander"] {
-        background: rgba(10, 8, 0, 0.6);
-        border: 1px solid #332910;
-        border-radius: 8px;
-        transition: all 0.3s;
+        background-color: #0A0A0B !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        border-radius: 8px !important;
     }
     div[data-testid="stExpander"]:hover {
-        border-color: #D4AF37;
+        border-color: rgba(212, 175, 55, 0.4) !important;
+    }
+    
+    /* CUSTOM STATUS PILL */
+    .status-pill {
+        display: flex;
+        align-items: center;
+        background: rgba(10, 255, 10, 0.05);
+        border: 1px solid rgba(10, 255, 10, 0.2);
+        padding: 10px 15px;
+        border-radius: 8px;
+        margin-top: 15px;
+    }
+    .status-dot {
+        height: 8px; width: 8px;
+        background-color: #4CAF50;
+        border-radius: 50%;
+        margin-right: 10px;
+        box-shadow: 0 0 8px #4CAF50;
+    }
+    .status-text {
+        color: #E2E8F0;
+        font-size: 0.85rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # --- 3. SESSION STATE INIT ---
 if "user" not in st.session_state: st.session_state.user = None
-
-INSTITUTIONS = sorted([
-    "National Law School of India University (NLSIU), Bangalore", "NALSAR University of Law, Hyderabad",
-    "National Law University, Delhi (NLUD)", "The West Bengal National University of Juridical Sciences (WBNUJS)",
-    "National Law University, Jodhpur (NLUJ)", "Hidayatullah National Law University (HNLU), Raipur",
-    "Gujarat National Law University (GNLU), Gandhinagar", "Dr. Ram Manohar Lohiya National Law University (RMLNLU)",
-    "Rajiv Gandhi National University of Law (RGNUL), Patiala", "Chanakya National Law University (CNLU), Patna",
-    "National University of Advanced Legal Studies (NUALS), Kochi", "National Law University Odisha (NLUO)",
-    "Tamil Nadu National Law University (TNNLU)", "Maharashtra National Law University (MNLU), Mumbai",
-    "Faculty of Law, University of Delhi (DU)", "Government Law College (GLC), Mumbai", 
-    "Symbiosis Law School (SLS), Pune", "School of Law, Christ University", "Jindal Global Law School"
-]) 
 
 # --- 4. DATABASE MANAGER ---
 class DBHandler:
@@ -340,7 +289,6 @@ db = DBHandler()
 
 # --- 5. AI ENGINE (SECURE SECRETS INTEGRATION) ---
 def get_gemini_response(query, tone, difficulty, institution):
-    # SECURE KEY FETCH: Users never see this, and it doesn't leak in the code.
     try:
         api_key = st.secrets["GEMINI_API_KEY"]
     except Exception:
@@ -362,11 +310,7 @@ def get_gemini_response(query, tone, difficulty, institution):
     4. FORMAT using Markdown: Use '### Headers', '**Bold**' for emphasis, and '>' for blockquotes.
     """
 
-    models_to_try = [
-        'gemini-2.5-flash',
-        'gemini-2.5-pro',
-        'gemini-2.0-flash'
-    ]
+    models_to_try = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash']
     
     last_error = ""
     for model_name in models_to_try:
@@ -405,7 +349,7 @@ def login_page():
             
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("INITIATE SESSION", use_container_width=True):
-                with st.spinner("Authenticating credentials..."):
+                with st.spinner("Authenticating..."):
                     time.sleep(0.5) 
                     user = db.login(email, password)
                     if user:
@@ -417,29 +361,23 @@ def login_page():
 def main_app():
     # --- SIDEBAR ---
     with st.sidebar:
-        st.image("https://cdn-icons-png.flaticon.com/512/924/924915.png", width=50)
-        st.markdown(f"### {st.session_state.user['name'].upper()}")
-        st.markdown(f"<span style='color: #D4AF37; font-size: 0.8rem;'>{st.session_state.user['institution']}</span>", unsafe_allow_html=True)
+        st.markdown(f"<h2 style='margin-bottom: 0;'>{st.session_state.user['name'].upper()}</h2>", unsafe_allow_html=True)
+        st.markdown(f"<span style='color: #D4AF37; font-size: 0.8rem; font-weight: 500;'>{st.session_state.user['institution']}</span>", unsafe_allow_html=True)
         
-        st.markdown("---")
-        nav = st.radio("SYSTEM MODULES", ["Research Core", "Knowledge Vault"], label_visibility="collapsed")
+        st.markdown("<br>", unsafe_allow_html=True)
+        nav = st.radio("MODULES", ["Research Core", "Knowledge Vault"], label_visibility="collapsed")
         
-        st.markdown("---")
+        st.markdown("<br><br>", unsafe_allow_html=True)
         
-        # Admin Status Indicator (No inputs for users)
-        key_configured = "GEMINI_API_KEY" in st.secrets
-        status_color = "#4CAF50" if key_configured else "#FF5252"
-        status_text = "System Online" if key_configured else "Server Config Error"
-        
-        st.markdown(f"""
-        <div style='border: 1px solid #332910; padding: 12px; border-radius: 6px; background: #0A0802; margin-top:10px;'>
-            <div style='display:flex; align-items:center; margin-bottom:5px;'>
-                <span style='color: {status_color}; font-size: 1.2rem; margin-right: 8px;'>●</span> 
-                <span style='color: #D4AF37; font-weight:600;'>{status_text}</span>
+        if "GEMINI_API_KEY" in st.secrets:
+            st.markdown("""
+            <div class='status-pill'>
+                <div class='status-dot'></div>
+                <div class='status-text'>System Online <br><span style='font-size: 0.7rem; color: #888; font-weight: 400;'>Engine: GenAI 2.5 Node</span></div>
             </div>
-            <div style='font-size: 0.7rem; color: #888;'>Engine: GenAI 2.5 Node</div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+        else:
+            st.error("Server Config Error: API Key missing in Secrets.")
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("TERMINATE UPLINK"):
@@ -448,22 +386,30 @@ def main_app():
 
     # --- RESEARCH CORE ---
     if nav == "Research Core":
-        st.markdown("# RESEARCH CORE")
-        st.markdown("<div class='temple-divider' style='margin: 0 0 30px 0; width: 100px;'></div>", unsafe_allow_html=True)
+        st.markdown("<h2 style='margin-bottom: 0;'>RESEARCH CORE</h2>", unsafe_allow_html=True)
+        st.markdown("<div class='temple-divider' style='margin: 10px 0 30px 0; width: 80px;'></div>", unsafe_allow_html=True)
 
+        # REPLACED UGLY SLIDERS WITH CLEAN DROPDOWNS
         with st.container(border=True):
             c1, c2, c3 = st.columns(3)
-            tone = c1.select_slider("OUTPUT TONE", ["Casual", "Professional", "Academic"], value="Academic")
-            diff = c2.select_slider("ANALYSIS DEPTH", ["Summary", "Detailed", "Bare Act"], value="Detailed")
-            space = c3.selectbox("AUTO-ARCHIVE TO", ["None", "Research", "Paper", "Study"])
+            with c1:
+                tone = st.selectbox("OUTPUT TONE", ["Casual", "Professional", "Academic"], index=2)
+            with c2:
+                diff = st.selectbox("ANALYSIS DEPTH", ["Summary", "Detailed", "Bare Act"], index=1)
+            with c3:
+                space = st.selectbox("AUTO-ARCHIVE TO", ["None", "Research", "Paper", "Study"])
 
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # CHAT HISTORY
         history = db.get_history(st.session_state.user['email'])
         for msg in history:
             avatar = "🧑‍⚖️" if msg['role'] == "user" else "⚖️"
             with st.chat_message(msg['role'], avatar=avatar):
                 st.markdown(msg['content'])
 
-        if query := st.chat_input("Input legal query, section, or case citation..."):
+        # CHAT INPUT
+        if query := st.chat_input("Enter legal query, section, or case citation..."):
             with st.chat_message("user", avatar="🧑‍⚖️"):
                 st.markdown(query)
             db.save_message(st.session_state.user['email'], "user", query)
@@ -472,7 +418,7 @@ def main_app():
                 spinner_ph = st.empty()
                 spinner_ph.markdown("""
                     <div style='display: flex; align-items: center; color: #D4AF37; padding: 10px;'>
-                        <span style='margin-right: 12px; font-size: 1.2rem; animation: pulseGlow 1.5s infinite;'>⚡</span> 
+                        <span style='margin-right: 12px; font-size: 1.2rem;'>⚖️</span> 
                         <span style='font-family: Cinzel; font-weight: 600; letter-spacing: 1px;'>ANALYZING LEGAL CORPUS...</span>
                     </div>
                 """, unsafe_allow_html=True)
@@ -499,12 +445,13 @@ def main_app():
 
     # --- KNOWLEDGE VAULT ---
     elif nav == "Knowledge Vault":
-        st.markdown("# KNOWLEDGE VAULT")
-        st.markdown("<div class='temple-divider' style='margin: 0 0 30px 0; width: 100px;'></div>", unsafe_allow_html=True)
+        st.markdown("<h2 style='margin-bottom: 0;'>KNOWLEDGE VAULT</h2>", unsafe_allow_html=True)
+        st.markdown("<div class='temple-divider' style='margin: 10px 0 30px 0; width: 80px;'></div>", unsafe_allow_html=True)
         
         t1, t2, t3 = st.tabs(["📚 RESEARCH", "📝 PAPERS", "🎓 STUDY"])
         for tab, cat in zip([t1, t2, t3], ["Research", "Paper", "Study"]):
             with tab:
+                st.markdown("<br>", unsafe_allow_html=True)
                 items = db.get_space_items(st.session_state.user['email'], cat)
                 if not items:
                     st.info(f"Sector '{cat}' is empty.", icon="ℹ️")
@@ -512,7 +459,7 @@ def main_app():
                     for item in items:
                         with st.expander(f"📌 {item['timestamp'][:16]} | {item['query'][:60]}..."):
                             st.markdown(item['response'])
-                            if st.button("DELETE RECORD", key=f"del_{item['id']}"):
+                            if st.button("DELETE RECORD", key=f"del_{item['id']}", type="secondary"):
                                 db.delete_space_item(item['id'])
                                 st.rerun()
 
