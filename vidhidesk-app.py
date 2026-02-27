@@ -57,21 +57,12 @@ st.markdown(f"""
     }}
     h1, h2, h3, h4, h5, h6 {{ font-family: 'Cinzel', serif !important; font-weight: 600 !important; color: {t_text} !important; }}
     
-    .block-container {{
-        padding-top: 2rem !important;
-        padding-bottom: 6rem !important; /* Space for native chat input */
-    }}
+    .block-container {{ padding-top: 2rem !important; padding-bottom: 6rem !important; }}
 
-    /* --- STICKY HEADER MAGIC --- */
-    /* This incredibly specific CSS selects only the exact wrapper holding our header marker and locks it to the top */
     div[data-testid="stVerticalBlock"]:has(#sticky-header-marker):not(:has(div[data-testid="stVerticalBlock"]:has(#sticky-header-marker))) {{
-        position: sticky !important;
-        top: 2rem !important;
-        z-index: 999 !important;
-        background-color: {t_bg} !important;
-        padding: 5px 0px 15px 0px !important;
-        border-bottom: 1px solid {t_border} !important;
-        margin-bottom: 20px !important;
+        position: sticky !important; top: 2rem !important; z-index: 999 !important;
+        background-color: {t_bg} !important; padding: 5px 0px 15px 0px !important;
+        border-bottom: 1px solid {t_border} !important; margin-bottom: 20px !important;
     }}
 
     .vidhi-title-container {{ width: 100%; text-align: center; padding-top: 3vh; padding-bottom: 2rem; }}
@@ -82,13 +73,15 @@ st.markdown(f"""
         letter-spacing: 0.15em; white-space: nowrap !important; font-weight: 700 !important;
         text-shadow: 0px 4px 20px rgba(212, 175, 55, 0.2);
     }}
-    .temple-divider {{
-        height: 1px; width: 200px; background: linear-gradient(90deg, transparent, #D4AF37, transparent); margin: 15px auto;
-    }}
+    .temple-divider {{ height: 1px; width: 200px; background: linear-gradient(90deg, transparent, #D4AF37, transparent); margin: 15px auto; }}
     .vidhi-subtitle {{ color: {t_subtext}; font-size: 0.8rem; letter-spacing: 4px; text-transform: uppercase; }}
     p, label, span, div {{ color: {t_text}; }}
 
-    /* UI TWEAKS */
+    ::-webkit-scrollbar {{ width: 6px; height: 6px; }}
+    ::-webkit-scrollbar-track {{ background: transparent; }}
+    ::-webkit-scrollbar-thumb {{ background: rgba(212, 175, 55, 0.5); border-radius: 4px; }}
+    ::-webkit-scrollbar-thumb:hover {{ background: rgba(212, 175, 55, 0.8); }}
+
     div[data-testid="InputInstructions"] {{ display: none !important; }}
     div[data-baseweb="select"] {{ cursor: pointer !important; }}
     div[data-baseweb="select"] * {{ cursor: pointer !important; }}
@@ -103,17 +96,13 @@ st.markdown(f"""
     div[data-baseweb="popover"] li {{ color: {t_text} !important; }}
     div[data-baseweb="popover"] li:hover {{ background-color: rgba(212, 175, 55, 0.2) !important; color: #D4AF37 !important; }}
     
-    /* Ensure popover button matches expander size */
-    div[data-testid="stPopover"] > button {{
-        min-height: 48px !important;
-        border-radius: 8px !important;
-    }}
+    div[data-testid="stPopover"] > button {{ min-height: 48px !important; border-radius: 8px !important; }}
 
-    .stTextInput > div > div > input, .stChatInput textarea {{
+    .stTextInput > div > div > input, .stChatInput textarea, .stTextArea textarea {{
         background-color: {t_input_bg} !important; border: 1px solid {t_border} !important;
         color: {t_text} !important; border-radius: 6px !important; padding: 10px !important;
     }}
-    .stTextInput > div > div > input:focus, .stChatInput textarea:focus {{
+    .stTextInput > div > div > input:focus, .stChatInput textarea:focus, .stTextArea textarea:focus {{
         border-color: #D4AF37 !important; box-shadow: 0 0 10px rgba(212, 175, 55, 0.2) !important;
     }}
 
@@ -288,7 +277,7 @@ def generate_word_document(query, response, title="VidhiDesk Legal Document"):
         doc.add_heading('Context / Facts:', level=1)
         doc.add_paragraph(query)
     
-    doc.add_heading('Generated Content:', level=1)
+    doc.add_heading('Legal Analysis:', level=1)
     clean_response = response.replace("**", "").replace("*", "")
     doc.add_paragraph(clean_response)
     
@@ -355,7 +344,7 @@ def get_gemini_stream(query, tone, difficulty, institution, pdf_text=None, audio
 
     yield "❌ **System Unavailable:** AI servers failed to respond."
 
-def get_drafting_stream(doc_type, facts, institution):
+def get_drafting_stream(doc_type, facts, institution, pdf_text=None):
     try:
         api_key = st.secrets["GEMINI_API_KEY"]
         client = genai.Client(api_key=api_key)
@@ -370,18 +359,23 @@ def get_drafting_stream(doc_type, facts, institution):
     - Use strict, formal Indian legal terminology.
     - Format properly using clear headings and numbered paragraphs.
     - Use placeholders like [CLIENT NAME], [DATE], [AMOUNT] for missing facts.
-    - Base the entire draft strictly on the facts provided below.
-    
-    FACTS: {facts}
+    - Base the entire draft strictly on the facts and documents provided below.
     """
+    
+    contents = [sys_instruction]
+    if pdf_text:
+        contents.append(f"\n[REFERENCE DOCUMENT UPLOADED]:\n{pdf_text[:15000]}\n\n(Use this document for context, references, or template structure).")
+    if facts:
+        contents.append(f"\n[CLIENT FACTS]:\n{facts}")
+        
     try:
-        response_stream = client.models.generate_content_stream(model='gemini-2.5-flash', contents=[sys_instruction])
+        response_stream = client.models.generate_content_stream(model='gemini-2.5-flash', contents=contents)
         for chunk in response_stream:
             if chunk.text: yield chunk.text
     except Exception as e:
         yield f"❌ **Drafting Engine Error:** {str(e)}"
 
-def get_translation_stream(text, target_lang, institution):
+def get_translation_stream(text, target_lang, institution, pdf_text=None):
     try:
         api_key = st.secrets["GEMINI_API_KEY"]
         client = genai.Client(api_key=api_key)
@@ -391,20 +385,26 @@ def get_translation_stream(text, target_lang, institution):
         
     sys_instruction = f"""
     ROLE: You are an expert Legal Translator at {institution}.
-    TASK: Translate the following legal text accurately into highly formal {target_lang}.
+    TASK: Translate the provided legal document/text accurately into highly formal {target_lang}.
     MANDATE: 
     - Preserve all legal meanings, liabilities, and nuances perfectly.
     - Maintain the original formatting and paragraph structure.
     - If there are Latin legal maxims, keep them in Latin but add the translated meaning in brackets.
-    
-    TEXT TO TRANSLATE: {text}
     """
+    
+    contents = [sys_instruction]
+    if pdf_text:
+        contents.append(f"\n[DOCUMENT TO TRANSLATE]:\n{pdf_text[:15000]}")
+    if text:
+        contents.append(f"\n[ADDITIONAL TEXT TO TRANSLATE]:\n{text}")
+        
     try:
-        response_stream = client.models.generate_content_stream(model='gemini-2.5-flash', contents=[sys_instruction])
+        response_stream = client.models.generate_content_stream(model='gemini-2.5-flash', contents=contents)
         for chunk in response_stream:
             if chunk.text: yield chunk.text
     except Exception as e:
         yield f"❌ **Translation Engine Error:** {str(e)}"
+
 
 # --- 7. UI LOGIC ---
 def login_page():
@@ -504,14 +504,12 @@ def main_app():
 
     # --- RESEARCH CORE ---
     if nav == "Research Core":
-        # 1. THE STICKY HEADER WRAPPER
         sticky_header = st.container()
         with sticky_header:
             st.markdown("<span id='sticky-header-marker'></span>", unsafe_allow_html=True)
             st.markdown(f"<h2 style='margin-bottom: 0; color: {t_text} !important;'>RESEARCH CORE</h2>", unsafe_allow_html=True)
             st.markdown("<div class='temple-divider' style='margin: 10px 0 20px 0; width: 80px; margin-left: 0;'></div>", unsafe_allow_html=True)
 
-            # --- COMPACT RESEARCH PARAMETERS & PERFECT ALIGNED VOICE UI ---
             param_col, mic_col = st.columns([0.85, 0.15], vertical_alignment="center")
             
             with param_col:
@@ -533,7 +531,7 @@ def main_app():
                         st.markdown("<br>", unsafe_allow_html=True)
                         strict_citation = st.toggle("🛡️ Strict Citation Mode")
                     with sc3:
-                        uploaded_pdf = st.file_uploader("📄 Upload PDF Context", type=["pdf"])
+                        uploaded_pdf = st.file_uploader("📄 Upload PDF Context", type=["pdf"], key="res_pdf")
 
             with mic_col:
                 with st.popover("🎙️ VOICE", use_container_width=True):
@@ -541,30 +539,24 @@ def main_app():
                     audio_data = st.audio_input("Record", label_visibility="collapsed")
                     submit_audio = st.button("SEND AUDIO", use_container_width=True, type="secondary")
 
-        # 2. NATIVE FULL-PAGE CHAT HISTORY
         history = db.get_history(st.session_state.user['email'])
         for msg in history:
             avatar = "🧑‍⚖️" if msg['role'] == "user" else "⚖️"
             with st.chat_message(msg['role'], avatar=avatar):
                 st.markdown(msg['content'])
 
-        # 3. NATIVE BOTTOM CHAT INPUT
         query = st.chat_input("Enter legal query, section, or case citation...")
-        
         is_audio_submission = audio_data is not None and submit_audio
 
         if query or is_audio_submission:
-            # Show what user asked
             with st.chat_message("user", avatar="🧑‍⚖️"):
-                if query:
-                    st.markdown(query)
+                if query: st.markdown(query)
                 if is_audio_submission:
                     st.audio(audio_data)
                     if not query: query = "Please analyze this audio recording."
             
             db.save_message(st.session_state.user['email'], "user", query)
 
-            # Process AI Response natively inline
             with st.chat_message("assistant", avatar="⚖️"):
                 pdf_extracted_text = None
                 if uploaded_pdf:
@@ -574,12 +566,9 @@ def main_app():
                 audio_bytes = audio_data.getvalue() if is_audio_submission else None
 
                 stream = get_gemini_stream(
-                    query, tone, diff, 
-                    st.session_state.user['institution'],
-                    pdf_text=pdf_extracted_text,
-                    audio_bytes=audio_bytes,
-                    enable_search=enable_search,
-                    strict_citation=strict_citation
+                    query, tone, diff, st.session_state.user['institution'],
+                    pdf_text=pdf_extracted_text, audio_bytes=audio_bytes,
+                    enable_search=enable_search, strict_citation=strict_citation
                 )
                 
                 full_response = st.write_stream(stream)
@@ -588,7 +577,6 @@ def main_app():
                 if space != "None" and "❌" not in full_response:
                     db.save_to_space(st.session_state.user['email'], space, query, full_response)
                     st.toast(f"Archived to {space}", icon="📂")
-            
             st.rerun()
 
         if history:
@@ -614,20 +602,28 @@ def main_app():
                 "Lease / Rent Agreement", "Writ Petition (Draft Format)"
             ])
             
-            facts = st.text_area("Client Facts & Details", height=150, placeholder="E.g., Client name is Rahul. Tenant Ramesh hasn't paid rent of Rs 50,000 for 3 months. Property is in T-Nagar, Chennai...")
+            facts = st.text_area("Client Facts & Details (Optional if PDF provided)", height=150, placeholder="E.g., Client name is Rahul. Tenant hasn't paid rent of Rs 50,000...")
+            
+            uploaded_draft_pdf = st.file_uploader("📄 Upload Reference Document / Old Contract (PDF)", type=["pdf"], key="draft_pdf")
             
             if st.button("GENERATE DRAFT", use_container_width=True):
-                if not facts:
-                    st.warning("Please enter the facts to generate a draft.")
+                if not facts and not uploaded_draft_pdf:
+                    st.warning("Please provide either text facts or upload a reference PDF to generate a draft.")
                 else:
                     st.markdown("---")
                     st.markdown(f"### Generated Draft: {doc_type}")
                     
-                    stream = get_drafting_stream(doc_type, facts, st.session_state.user['institution'])
+                    pdf_extracted_text = None
+                    if uploaded_draft_pdf:
+                        with st.spinner("Extracting Reference Document..."):
+                            pdf_extracted_text = extract_pdf_text(uploaded_draft_pdf)
+                            
+                    stream = get_drafting_stream(doc_type, facts, st.session_state.user['institution'], pdf_text=pdf_extracted_text)
                     final_draft = st.write_stream(stream)
                     
                     if "❌" not in final_draft:
-                        doc_bytes = generate_word_document(f"Facts provided:\n{facts}", final_draft, title=f"Draft: {doc_type}")
+                        context_note = f"Facts provided:\n{facts}\n\n[Reference PDF was uploaded and used in this draft]" if uploaded_draft_pdf else f"Facts provided:\n{facts}"
+                        doc_bytes = generate_word_document(context_note, final_draft, title=f"Draft: {doc_type}")
                         st.download_button(
                             label="📄 DOWNLOAD DRAFT AS WORD",
                             data=doc_bytes,
@@ -647,20 +643,28 @@ def main_app():
         with st.container(border=True):
             target_lang = st.selectbox("Translate To", ["Hindi", "Tamil", "Marathi", "Bengali", "Telugu", "Gujarati", "Malayalam", "English"])
             
-            source_text = st.text_area("Source Text", height=200, placeholder="Paste legal document text, FIR copy, or court order here...")
+            source_text = st.text_area("Source Text (Optional if PDF provided)", height=150, placeholder="Paste legal document text here...")
+            
+            uploaded_trans_pdf = st.file_uploader("📄 Upload Document to Translate (PDF)", type=["pdf"], key="trans_pdf")
             
             if st.button("TRANSLATE", use_container_width=True):
-                if not source_text:
-                    st.warning("Please enter text to translate.")
+                if not source_text and not uploaded_trans_pdf:
+                    st.warning("Please paste text or upload a PDF to translate.")
                 else:
                     st.markdown("---")
                     st.markdown(f"### {target_lang} Translation")
                     
-                    stream = get_translation_stream(source_text, target_lang, st.session_state.user['institution'])
+                    pdf_extracted_text = None
+                    if uploaded_trans_pdf:
+                        with st.spinner("Extracting PDF Text for Translation..."):
+                            pdf_extracted_text = extract_pdf_text(uploaded_trans_pdf)
+                            
+                    stream = get_translation_stream(source_text, target_lang, st.session_state.user['institution'], pdf_text=pdf_extracted_text)
                     final_translation = st.write_stream(stream)
                     
                     if "❌" not in final_translation:
-                        doc_bytes = generate_word_document(f"Original Text:\n{source_text}", final_translation, title=f"Legal Translation ({target_lang})")
+                        context_note = f"Source Text:\n{source_text}\n\n[PDF Document Translated]" if uploaded_trans_pdf else f"Source Text:\n{source_text}"
+                        doc_bytes = generate_word_document(context_note, final_translation, title=f"Legal Translation ({target_lang})")
                         st.download_button(
                             label="📄 DOWNLOAD TRANSLATION AS WORD",
                             data=doc_bytes,
