@@ -280,14 +280,15 @@ def extract_pdf_text(uploaded_file):
     except Exception as e:
         return f"Error reading PDF: {e}"
 
-def generate_word_document(query, response):
+def generate_word_document(query, response, title="VidhiDesk Legal Document"):
     doc = Document()
-    doc.add_heading('VidhiDesk Legal Research Report', 0)
+    doc.add_heading(title, 0)
     
-    doc.add_heading('Subject / Query:', level=1)
-    doc.add_paragraph(query)
+    if query:
+        doc.add_heading('Context / Facts:', level=1)
+        doc.add_paragraph(query)
     
-    doc.add_heading('Legal Analysis:', level=1)
+    doc.add_heading('Generated Content:', level=1)
     clean_response = response.replace("**", "").replace("*", "")
     doc.add_paragraph(clean_response)
     
@@ -296,7 +297,7 @@ def generate_word_document(query, response):
     return bio.getvalue()
 
 # --- 6. AI ENGINE ---
-def get_gemini_stream(query, tone, difficulty, institution, pdf_text=None, audio_bytes=None, enable_search=False):
+def get_gemini_stream(query, tone, difficulty, institution, pdf_text=None, audio_bytes=None, enable_search=False, strict_citation=False):
     try:
         api_key = st.secrets["GEMINI_API_KEY"]
     except Exception:
@@ -314,6 +315,9 @@ def get_gemini_stream(query, tone, difficulty, institution, pdf_text=None, audio
     TONE: {tone} | DEPTH: {difficulty}
     MANDATE: Prioritize Indian Statutes (BNS, BNSS, BSA, Constitution). Cite relevant Case Laws. Use Markdown.
     """
+    
+    if strict_citation:
+        sys_instruction += "\nCRITICAL RULE (STRICT CITATION MODE): You MUST ONLY cite real, verifiable Indian case laws. Provide the exact year, volume, and court. Under NO circumstances should you invent or hallucinate a case. If you cannot find a verifiable precedent, explicitly state 'No verifiable case law found for this specific query'."
 
     contents = [sys_instruction]
     
@@ -326,7 +330,7 @@ def get_gemini_stream(query, tone, difficulty, institution, pdf_text=None, audio
     if query:
         contents.append(f"\nUSER QUERY: {query}")
 
-    config = types.GenerateContentConfig(temperature=0.3)
+    config = types.GenerateContentConfig(temperature=0.1 if strict_citation else 0.3)
     if enable_search:
         config.tools = [{"google_search": {}}]
 
@@ -350,6 +354,57 @@ def get_gemini_stream(query, tone, difficulty, institution, pdf_text=None, audio
             continue 
 
     yield "❌ **System Unavailable:** AI servers failed to respond."
+
+def get_drafting_stream(doc_type, facts, institution):
+    try:
+        api_key = st.secrets["GEMINI_API_KEY"]
+        client = genai.Client(api_key=api_key)
+    except Exception:
+        yield "❌ **System Config Error.**"
+        return
+        
+    sys_instruction = f"""
+    ROLE: You are a Senior Legal Draftsman at {institution} in India.
+    TASK: Draft a professional, court-ready '{doc_type}'.
+    MANDATE: 
+    - Use strict, formal Indian legal terminology.
+    - Format properly using clear headings and numbered paragraphs.
+    - Use placeholders like [CLIENT NAME], [DATE], [AMOUNT] for missing facts.
+    - Base the entire draft strictly on the facts provided below.
+    
+    FACTS: {facts}
+    """
+    try:
+        response_stream = client.models.generate_content_stream(model='gemini-2.5-flash', contents=[sys_instruction])
+        for chunk in response_stream:
+            if chunk.text: yield chunk.text
+    except Exception as e:
+        yield f"❌ **Drafting Engine Error:** {str(e)}"
+
+def get_translation_stream(text, target_lang, institution):
+    try:
+        api_key = st.secrets["GEMINI_API_KEY"]
+        client = genai.Client(api_key=api_key)
+    except Exception:
+        yield "❌ **System Config Error.**"
+        return
+        
+    sys_instruction = f"""
+    ROLE: You are an expert Legal Translator at {institution}.
+    TASK: Translate the following legal text accurately into highly formal {target_lang}.
+    MANDATE: 
+    - Preserve all legal meanings, liabilities, and nuances perfectly.
+    - Maintain the original formatting and paragraph structure.
+    - If there are Latin legal maxims, keep them in Latin but add the translated meaning in brackets.
+    
+    TEXT TO TRANSLATE: {text}
+    """
+    try:
+        response_stream = client.models.generate_content_stream(model='gemini-2.5-flash', contents=[sys_instruction])
+        for chunk in response_stream:
+            if chunk.text: yield chunk.text
+    except Exception as e:
+        yield f"❌ **Translation Engine Error:** {str(e)}"
 
 # --- 7. UI LOGIC ---
 def login_page():
@@ -417,7 +472,7 @@ def main_app():
         st.markdown(f"<span style='color: #D4AF37; font-size: 0.8rem; font-weight: 500;'>{st.session_state.user['institution']}</span>", unsafe_allow_html=True)
         
         st.markdown("<br>", unsafe_allow_html=True)
-        nav = st.radio("MODULES", ["Research Core", "Knowledge Vault"], label_visibility="collapsed")
+        nav = st.radio("MODULES", ["Research Core", "Drafting Studio", "Translation Desk", "Knowledge Vault"], label_visibility="collapsed")
         
         st.markdown("<br>", unsafe_allow_html=True)
         theme_icon = "☀️ Light Mode" if st.session_state.theme == "dark" else "🌙 Dark Mode"
@@ -470,12 +525,15 @@ def main_app():
                         space = st.selectbox("AUTO-ARCHIVE TO", ["None", "Research", "Paper", "Study"])
                         
                     st.markdown("---")
-                    sc1, sc2 = st.columns([1, 1])
+                    sc1, sc2, sc3 = st.columns([1, 1, 1])
                     with sc1:
                         st.markdown("<br>", unsafe_allow_html=True)
-                        enable_search = st.toggle("🌐 Enable Web Grounding (Live Internet Search)")
+                        enable_search = st.toggle("🌐 Web Grounding (Live Search)")
                     with sc2:
-                        uploaded_pdf = st.file_uploader("📄 Upload Case File (PDF) for Context", type=["pdf"])
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        strict_citation = st.toggle("🛡️ Strict Citation Mode")
+                    with sc3:
+                        uploaded_pdf = st.file_uploader("📄 Upload PDF Context", type=["pdf"])
 
             with mic_col:
                 with st.popover("🎙️ VOICE", use_container_width=True):
@@ -483,7 +541,7 @@ def main_app():
                     audio_data = st.audio_input("Record", label_visibility="collapsed")
                     submit_audio = st.button("SEND AUDIO", use_container_width=True, type="secondary")
 
-        # 2. NATIVE FULL-PAGE CHAT HISTORY (No fixed height)
+        # 2. NATIVE FULL-PAGE CHAT HISTORY
         history = db.get_history(st.session_state.user['email'])
         for msg in history:
             avatar = "🧑‍⚖️" if msg['role'] == "user" else "⚖️"
@@ -520,7 +578,8 @@ def main_app():
                     st.session_state.user['institution'],
                     pdf_text=pdf_extracted_text,
                     audio_bytes=audio_bytes,
-                    enable_search=enable_search
+                    enable_search=enable_search,
+                    strict_citation=strict_citation
                 )
                 
                 full_response = st.write_stream(stream)
@@ -530,16 +589,85 @@ def main_app():
                     db.save_to_space(st.session_state.user['email'], space, query, full_response)
                     st.toast(f"Archived to {space}", icon="📂")
             
-            # Auto rerun forces the page to scroll down smoothly to the newest message
             st.rerun()
 
-        # Clear Logs Button
         if history:
             c1, c2 = st.columns([0.85, 0.15])
             with c2:
                 if st.button("CLEAR LOGS", type="secondary"):
                     db.clear_history(st.session_state.user['email'])
                     st.rerun()
+
+    # --- DRAFTING STUDIO ---
+    elif nav == "Drafting Studio":
+        st.markdown(f"<h2 style='margin-bottom: 0; color: {t_text} !important;'>DRAFTING STUDIO</h2>", unsafe_allow_html=True)
+        st.markdown("<div class='temple-divider' style='margin: 10px 0 30px 0; width: 80px; margin-left: 0;'></div>", unsafe_allow_html=True)
+        
+        st.markdown("Automated generation of court-ready legal documents based on standard Indian formats.", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        with st.container(border=True):
+            st.markdown("#### Draft Configuration")
+            doc_type = st.selectbox("Document Type", [
+                "Legal Notice (General)", "Legal Notice (Sec 138 NI Act - Cheque Bounce)", 
+                "Non-Disclosure Agreement (NDA)", "Bail Application (Under BNSS)", 
+                "Lease / Rent Agreement", "Writ Petition (Draft Format)"
+            ])
+            
+            facts = st.text_area("Client Facts & Details", height=150, placeholder="E.g., Client name is Rahul. Tenant Ramesh hasn't paid rent of Rs 50,000 for 3 months. Property is in T-Nagar, Chennai...")
+            
+            if st.button("GENERATE DRAFT", use_container_width=True):
+                if not facts:
+                    st.warning("Please enter the facts to generate a draft.")
+                else:
+                    st.markdown("---")
+                    st.markdown(f"### Generated Draft: {doc_type}")
+                    
+                    stream = get_drafting_stream(doc_type, facts, st.session_state.user['institution'])
+                    final_draft = st.write_stream(stream)
+                    
+                    if "❌" not in final_draft:
+                        doc_bytes = generate_word_document(f"Facts provided:\n{facts}", final_draft, title=f"Draft: {doc_type}")
+                        st.download_button(
+                            label="📄 DOWNLOAD DRAFT AS WORD",
+                            data=doc_bytes,
+                            file_name=f"Draft_{doc_type.replace(' ', '_')}.docx",
+                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            type="primary"
+                        )
+
+    # --- TRANSLATION DESK ---
+    elif nav == "Translation Desk":
+        st.markdown(f"<h2 style='margin-bottom: 0; color: {t_text} !important;'>TRANSLATION DESK</h2>", unsafe_allow_html=True)
+        st.markdown("<div class='temple-divider' style='margin: 10px 0 30px 0; width: 80px; margin-left: 0;'></div>", unsafe_allow_html=True)
+        
+        st.markdown("High-fidelity legal translation preserving complex terminology and legal nuances.", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        with st.container(border=True):
+            target_lang = st.selectbox("Translate To", ["Hindi", "Tamil", "Marathi", "Bengali", "Telugu", "Gujarati", "Malayalam", "English"])
+            
+            source_text = st.text_area("Source Text", height=200, placeholder="Paste legal document text, FIR copy, or court order here...")
+            
+            if st.button("TRANSLATE", use_container_width=True):
+                if not source_text:
+                    st.warning("Please enter text to translate.")
+                else:
+                    st.markdown("---")
+                    st.markdown(f"### {target_lang} Translation")
+                    
+                    stream = get_translation_stream(source_text, target_lang, st.session_state.user['institution'])
+                    final_translation = st.write_stream(stream)
+                    
+                    if "❌" not in final_translation:
+                        doc_bytes = generate_word_document(f"Original Text:\n{source_text}", final_translation, title=f"Legal Translation ({target_lang})")
+                        st.download_button(
+                            label="📄 DOWNLOAD TRANSLATION AS WORD",
+                            data=doc_bytes,
+                            file_name=f"Translation_{target_lang}.docx",
+                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            type="primary"
+                        )
 
     elif nav == "Knowledge Vault":
         st.markdown(f"<h2 style='margin-bottom: 0; color: {t_text} !important;'>KNOWLEDGE VAULT</h2>", unsafe_allow_html=True)
