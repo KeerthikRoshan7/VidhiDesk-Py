@@ -40,69 +40,59 @@ st.markdown(f"""
        1. CORE UI ANIMATIONS & STREAMLIT OVERRIDES
        ========================================= */
     @keyframes fadeIn {{ from {{ opacity: 0; transform: translateY(10px); }} to {{ opacity: 1; transform: translateY(0); }} }}
-    @keyframes pulseGlow {{ 0% {{ box-shadow: inset 0 0 10px rgba(139, 92, 246, 0.05); }} 50% {{ box-shadow: inset 0 0 20px rgba(139, 92, 246, 0.15); }} 100% {{ box-shadow: inset 0 0 10px rgba(139, 92, 246, 0.05); }} }}
+    @keyframes pulseGlow {{ 0% {{ filter: drop-shadow(0 0 5px rgba(217, 70, 239, 0.2)); }} 50% {{ filter: drop-shadow(0 0 15px rgba(217, 70, 239, 0.6)); }} 100% {{ filter: drop-shadow(0 0 5px rgba(217, 70, 239, 0.2)); }} }}
+    @keyframes activeGlow {{ 0% {{ box-shadow: inset 0 0 10px rgba(139, 92, 246, 0.05); }} 50% {{ box-shadow: inset 0 0 20px rgba(139, 92, 246, 0.15); }} 100% {{ box-shadow: inset 0 0 10px rgba(139, 92, 246, 0.05); }} }}
+
+    /* LOGIN PAGE CINEMATIC SEQUENCE */
+    @keyframes cyberAssemblyLeft {{ 0% {{ transform: translateX(-40px) translateY(-20px); opacity: 0; filter: blur(5px); }} 100% {{ transform: translateX(0) translateY(0); opacity: 1; filter: blur(0); }} }}
+    @keyframes cyberAssemblyRight {{ 0% {{ transform: translateX(40px) translateY(20px); opacity: 0; filter: blur(5px); }} 100% {{ transform: translateX(0) translateY(0); opacity: 1; filter: blur(0); }} }}
+    @keyframes cyberAssemblyCenter {{ 0% {{ transform: scale(0.5); opacity: 0; }} 60% {{ transform: scale(1.05); opacity: 1; filter: drop-shadow(0 0 20px #D946EF); }} 100% {{ transform: scale(1); opacity: 1; }} }}
+    @keyframes formCascade {{ 0% {{ opacity: 0; transform: translateY(30px); }} 100% {{ opacity: 1; transform: translateY(0); }} }}
+
+    .split-left {{ animation: cyberAssemblyLeft 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }}
+    .split-right {{ animation: cyberAssemblyRight 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }}
+    .split-center {{ animation: cyberAssemblyCenter 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }}
+    .login-svg {{ animation: pulseGlow 4s infinite 1.5s; overflow: visible; }}
+
+    /* Scope the delays ONLY to the login page to keep the main app fast */
+    body:has(#login-page-marker) .vidhi-title {{ animation: formCascade 0.8s ease-out 1s forwards; opacity: 0; }}
+    body:has(#login-page-marker) .temple-divider {{ animation: formCascade 0.8s ease-out 1.1s forwards; opacity: 0; }}
+    body:has(#login-page-marker) .vidhi-subtitle {{ animation: formCascade 0.8s ease-out 1.2s forwards; opacity: 0; }}
+    body:has(#login-page-marker) div[data-testid="stTabs"] {{ animation: formCascade 1s cubic-bezier(0.2, 0.8, 0.2, 1) 1.5s forwards; opacity: 0; }}
 
     .stApp {{ animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1); }}
-    
     header[data-testid="stHeader"] {{ background: transparent !important; box-shadow: none !important; }}
     [data-testid="stHeaderActionElements"], #MainMenu, .stDeployButton, footer, div[data-testid="stDecoration"] {{ display: none !important; }}
-    
     .block-container {{ padding-top: 2rem !important; padding-bottom: 6rem !important; }}
     section[data-testid="stSidebar"] > div {{ padding-top: 1.5rem !important; }}
 
     /* FORCE OBSIDIAN THEME ACROSS CONTAINERS */
-    .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"], [data-testid="stMainBlockContainer"] {{
-        background-color: {t_bg} !important; color: {t_text} !important; font-family: 'Inter', sans-serif;
-    }}
-    
-    section[data-testid="stSidebar"] {{
-        background-color: {t_container} !important; border-right: 1px solid {t_border} !important;
-    }}
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"], [data-testid="stMainBlockContainer"] {{ background-color: {t_bg} !important; color: {t_text} !important; font-family: 'Inter', sans-serif; }}
+    section[data-testid="stSidebar"] {{ background-color: {t_container} !important; border-right: 1px solid {t_border} !important; }}
     h1, h2, h3, h4, h5, h6 {{ font-family: 'Cinzel', serif !important; font-weight: 600 !important; color: {t_text} !important; transition: color 0.3s ease; }}
-    
-    div[data-testid="stBottom"], div[data-testid="stBottomBlockContainer"] {{
-        background-color: {t_bg} !important; background: {t_bg} !important;
-    }}
+    div[data-testid="stBottom"], div[data-testid="stBottomBlockContainer"] {{ background-color: {t_bg} !important; background: {t_bg} !important; }}
     div[data-testid="stBottom"] > div {{ background-color: transparent !important; }}
 
-    input::placeholder, textarea::placeholder, .stChatInput textarea::placeholder {{
-        color: {t_text} !important; opacity: 0.45 !important; transition: opacity 0.3s ease;
-    }}
+    input::placeholder, textarea::placeholder, .stChatInput textarea::placeholder {{ color: {t_text} !important; opacity: 0.45 !important; transition: opacity 0.3s ease; }}
     input:focus::placeholder, textarea:focus::placeholder {{ opacity: 0.7 !important; }}
     
     /* =========================================
        2. SIDEBAR TABS - STRICT CENTERED EQUAL GRID
        ========================================= */
     div[role="radiogroup"] {{
-        display: grid !important;
-        grid-template-columns: 1fr 1fr !important;
-        grid-auto-rows: 48px !important;
-        gap: 8px !important; 
-        width: 100% !important;
-        align-items: stretch !important;
+        display: grid !important; grid-template-columns: 1fr 1fr !important; grid-auto-rows: 48px !important;
+        gap: 8px !important; width: 100% !important; align-items: stretch !important;
     }}
-    
-    div[role="radiogroup"] label > div:first-child:not([data-testid="stMarkdownContainer"]),
-    div[role="radiogroup"] label div[data-baseweb="radio"],
-    div[role="radiogroup"] label input {{ 
+    div[role="radiogroup"] label > div:first-child:not([data-testid="stMarkdownContainer"]), div[role="radiogroup"] label div[data-baseweb="radio"], div[role="radiogroup"] label input {{ 
         display: none !important; width: 0 !important; height: 0 !important; opacity: 0 !important; position: absolute !important;
     }}
-    
     div[role="radiogroup"] label {{
-        width: 100% !important; height: 100% !important;
-        margin: 0 !important; padding: 0 !important; cursor: pointer !important;
+        width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; cursor: pointer !important;
         display: flex !important; align-items: center !important; justify-content: center !important;
-        background-color: {t_container} !important;
-        border: 1px solid {t_border} !important;
-        border-radius: 4px !important;
-        box-sizing: border-box !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        background-color: {t_container} !important; border: 1px solid {t_border} !important; border-radius: 4px !important;
+        box-sizing: border-box !important; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }}
-    
-    div[role="radiogroup"] label div[data-testid="stMarkdownContainer"] {{
-        width: 100% !important; height: 100% !important; display: flex !important; align-items: center !important; justify-content: center !important;
-    }}
-    
+    div[role="radiogroup"] label div[data-testid="stMarkdownContainer"] {{ width: 100% !important; height: 100% !important; display: flex !important; align-items: center !important; justify-content: center !important; }}
     div[role="radiogroup"] label div[data-testid="stMarkdownContainer"] p {{
         font-size: 0.85rem !important; font-weight: 600 !important; color: {t_subtext} !important; 
         margin: 0 !important; padding: 0 !important; line-height: 1 !important; text-align: center !important;
@@ -110,17 +100,11 @@ st.markdown(f"""
         width: 100% !important; height: 100% !important; transition: color 0.3s ease !important;
     }}
 
-    div[role="radiogroup"] label:hover {{
-        background-color: rgba(139, 92, 246, 0.05) !important; 
-        border-color: {t_border_cyber} !important;
-        transform: translateY(-2px);
-    }}
+    div[role="radiogroup"] label:hover {{ background-color: rgba(139, 92, 246, 0.05) !important; border-color: {t_border_cyber} !important; transform: translateY(-2px); }}
     div[role="radiogroup"] label:hover div[data-testid="stMarkdownContainer"] p {{ color: #FFF !important; }}
-
     div[role="radiogroup"] label:has(input[aria-checked="true"]) {{
         background-color: {t_bg} !important; border-color: {t_border_cyber} !important; 
-        border-left: 4px solid #8B5CF6 !important; /* Cyber Purple Active Line */
-        animation: pulseGlow 3s infinite;
+        border-left: 4px solid #8B5CF6 !important; animation: activeGlow 3s infinite;
     }}
     div[role="radiogroup"] label:has(input[aria-checked="true"]) div[data-testid="stMarkdownContainer"] p {{ color: #D946EF !important; }}
 
@@ -133,13 +117,12 @@ st.markdown(f"""
         border-bottom: 1px solid {t_border} !important; margin-bottom: 20px !important;
     }}
 
-    .vidhi-title-container {{ width: 100%; text-align: center; padding-top: 3vh; padding-bottom: 2rem; animation: fadeIn 0.8s ease-out; }}
+    .vidhi-title-container {{ width: 100%; text-align: center; padding-top: 2vh; padding-bottom: 2rem; }}
     .vidhi-title {{
         font-size: clamp(2.5rem, 6vw, 4.5rem); margin: 0 auto;
         background: linear-gradient(135deg, #BF953F 0%, #FCF6BA 40%, #B38728 60%, #AA771C 100%);
         -webkit-background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
         letter-spacing: 0.15em; white-space: nowrap !important; font-weight: 700 !important;
-        text-shadow: 0px 4px 20px rgba(212, 175, 55, 0.2);
     }}
     .temple-divider {{ height: 1px; width: 200px; background: linear-gradient(90deg, transparent, #8B5CF6, transparent); margin: 15px auto; }}
     .vidhi-subtitle {{ color: {t_subtext}; font-size: 0.8rem; letter-spacing: 4px; text-transform: uppercase; }}
@@ -150,50 +133,34 @@ st.markdown(f"""
     ::-webkit-scrollbar-thumb {{ background: rgba(139, 92, 246, 0.4); border-radius: 4px; transition: background 0.3s; }}
     ::-webkit-scrollbar-thumb:hover {{ background: rgba(139, 92, 246, 0.8); }}
 
-    div[data-baseweb="select"] > div {{
-        background-color: {t_input_bg} !important; border: 1px solid {t_border} !important;
-        color: {t_text} !important; border-radius: 6px !important; transition: all 0.3s ease !important;
-    }}
+    div[data-baseweb="select"] > div {{ background-color: {t_input_bg} !important; border: 1px solid {t_border} !important; color: {t_text} !important; border-radius: 6px !important; transition: all 0.3s ease !important; }}
     div[data-baseweb="select"] > div:hover, div[data-baseweb="select"] > div:focus-within {{ border-color: #8B5CF6 !important; box-shadow: 0 0 10px rgba(139, 92, 246, 0.1) !important; }}
-    
     div[data-baseweb="popover"] {{ background-color: {t_container} !important; border: 1px solid #8B5CF6 !important; transition: all 0.3s ease; }}
     div[data-baseweb="popover"] li:hover {{ background-color: rgba(139, 92, 246, 0.15) !important; color: #D946EF !important; }}
-    
     div[data-testid="stPopover"] > button {{ min-height: 48px !important; border-radius: 8px !important; transition: all 0.3s ease !important; }}
 
     .stTextInput > div > div > input, .stChatInput textarea, .stTextArea textarea {{
-        background-color: {t_input_bg} !important; border: 1px solid {t_border} !important;
-        color: {t_text} !important; border-radius: 6px !important; padding: 10px !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        background-color: {t_input_bg} !important; border: 1px solid {t_border} !important; color: {t_text} !important; border-radius: 6px !important; padding: 10px !important; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }}
-    .stTextInput > div > div > input:focus, .stChatInput textarea:focus, .stTextArea textarea:focus {{
-        border-color: #8B5CF6 !important; box-shadow: 0 0 15px rgba(139, 92, 246, 0.2) !important;
-    }}
+    .stTextInput > div > div > input:focus, .stChatInput textarea:focus, .stTextArea textarea:focus {{ border-color: #8B5CF6 !important; box-shadow: 0 0 15px rgba(139, 92, 246, 0.2) !important; }}
 
     .stButton > button {{
-        background: linear-gradient(135deg, #0A0A0B 0%, #111 100%) !important;
-        color: #D4AF37 !important; font-family: 'Cinzel', serif !important; font-weight: 600 !important;
-        border: 1px solid rgba(212, 175, 55, 0.5) !important; border-radius: 4px !important;
-        text-transform: uppercase; letter-spacing: 1.5px; width: 100%; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        background: linear-gradient(135deg, #0A0A0B 0%, #111 100%) !important; color: #D4AF37 !important; font-family: 'Cinzel', serif !important; font-weight: 600 !important;
+        border: 1px solid rgba(212, 175, 55, 0.5) !important; border-radius: 4px !important; text-transform: uppercase; letter-spacing: 1.5px; width: 100%; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }}
     .stButton > button:hover {{
-        background: linear-gradient(135deg, #111 0%, #1a1a1a 100%) !important;
-        border-color: #D946EF !important; color: #FFF !important; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3) !important;
-        transform: translateY(-2px);
+        background: linear-gradient(135deg, #111 0%, #1a1a1a 100%) !important; border-color: #D946EF !important; color: #FFF !important; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3) !important; transform: translateY(-2px);
     }}
     button[kind="secondary"] {{ background: transparent !important; border: 1px solid {t_subtext} !important; color: {t_subtext} !important; }}
     button[kind="secondary"]:hover {{ border-color: #8B5CF6 !important; color: #D946EF !important; }}
 
     .stChatMessage {{
-        background-color: {t_chat_bg} !important; border: 1px solid {t_border} !important;
-        border-radius: 12px !important; padding: 1.2rem !important; margin-bottom: 1rem !important;
+        background-color: {t_chat_bg} !important; border: 1px solid {t_border} !important; border-radius: 12px !important; padding: 1.2rem !important; margin-bottom: 1rem !important;
         animation: fadeIn 0.4s ease-out; transition: transform 0.2s ease, border-color 0.3s ease;
     }}
     .stChatMessage:hover {{ border-color: rgba(212, 175, 55, 0.3) !important; }}
     .stChatMessage[data-testid="stChatMessageAvatar"] {{ background-color: #0A0A0B !important; border: 1px solid #D4AF37 !important; color: #D4AF37 !important; }}
-    
     div[data-testid="stContainer"] > div > div > div {{ background-color: {t_container}; border-radius: 8px; }}
-    
     button[data-baseweb="tab"] {{ color: {t_subtext} !important; font-weight: 600 !important; transition: all 0.3s ease !important; }}
     button[aria-selected="true"] {{ color: #D946EF !important; border-bottom: 2px solid #D946EF !important; }}
 </style>
@@ -414,10 +381,24 @@ def get_translation_stream(text, target_lang, institution, pdf_text=None):
 
 # --- 7. UI LOGIC ---
 def login_page():
+    # Hidden marker to trigger scoped CSS animations
+    st.markdown("<div id='login-page-marker'></div>", unsafe_allow_html=True)
+    
     st.markdown("""
         <div class='vidhi-title-container'>
+            <div style="display: flex; justify-content: center; margin-bottom: 25px;">
+                <svg viewBox="0 0 100 100" class="login-svg" style="width: 140px; height: 140px;">
+                    <defs>
+                        <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#BF953F"/><stop offset="40%" stop-color="#FCF6BA"/><stop offset="100%" stop-color="#AA771C"/></linearGradient>
+                        <linearGradient id="cyber" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#D946EF" /><stop offset="50%" stop-color="#8B5CF6" /><stop offset="100%" stop-color="#4C1D95" /></linearGradient>
+                    </defs>
+                    <g class="split-center"><path d="M 30 20 L 50 80 L 70 20 L 60 20 L 50 55 L 40 20 Z" fill="url(#g1)"/></g>
+                    <g class="split-left"><path d="M 10 10 L 25 30 L 15 50 L 45 95 L 50 85 L 30 50 L 40 30 L 20 10 Z" fill="url(#cyber)"/><polygon points="50,5 53,15 50,25 47,15" fill="url(#cyber)"/></g>
+                    <g class="split-right"><path d="M 90 10 L 75 30 L 85 50 L 55 95 L 50 85 L 70 50 L 60 30 L 80 10 Z" fill="url(#cyber)"/><polygon points="50,90 52,95 50,100 48,95" fill="url(#cyber)"/></g>
+                </svg>
+            </div>
             <h1 class='vidhi-title'>VIDHIDESK</h1>
-            <div class='temple-divider' style='background: linear-gradient(90deg, transparent, #8B5CF6, transparent);'></div>
+            <div class='temple-divider'></div>
             <div class='vidhi-subtitle' style='color: #D946EF;'>Intelligent Legal Infrastructure</div>
         </div>
     """, unsafe_allow_html=True)
@@ -467,7 +448,7 @@ def login_page():
 
 def main_app():
     with st.sidebar:
-        # THE NEW CYBERSIGILISM LOGO (DRAFT 7) AND HEADER
+        # THE CYBERSIGILISM LOGO (DRAFT 7) AND HEADER
         st.markdown(f"""
             <div style='display: flex; align-items: center; margin-bottom: 10px; animation: fadeIn 0.8s ease-out;'>
                 <svg viewBox="0 0 100 100" style="width: 50px; height: 50px; margin-right: 15px; flex-shrink: 0; filter: drop-shadow(0 0 8px rgba(217, 70, 239, 0.4));">
