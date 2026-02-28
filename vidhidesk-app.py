@@ -50,11 +50,16 @@ st.markdown(f"""
     @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
 
     /* =========================================
-       1. STREAMLIT UI OVERRIDES & THEME ENFORCEMENT
+       1. STREAMLIT UI OVERRIDES & SIDEBAR FIX
        ========================================= */
-    header[data-testid="stHeader"] {{ display: none !important; }}
-    #MainMenu {{ visibility: hidden !important; }}
-    footer {{ visibility: hidden !important; }}
+    /* Make header transparent so the sidebar > arrow is visible, but hide the right-side clutter */
+    header[data-testid="stHeader"] {{ 
+        background: transparent !important; 
+        box-shadow: none !important;
+    }}
+    div[data-testid="stToolbar"] {{ display: none !important; }}
+    #MainMenu {{ display: none !important; }}
+    footer {{ display: none !important; }}
     .stDeployButton {{ display: none !important; }}
     div[data-testid="stDecoration"] {{ display: none !important; }}
     
@@ -93,7 +98,6 @@ st.markdown(f"""
     /* =========================================
        2. TABS GRID - STRICT EQUAL RECTANGLES
        ========================================= */
-    /* Transform radiogroup into a strict, perfectly equal 2x2 grid */
     div[role="radiogroup"] {{
         display: grid !important;
         grid-template-columns: 1fr 1fr !important;
@@ -103,7 +107,6 @@ st.markdown(f"""
         align-items: stretch !important;
     }}
     
-    /* THE ULTIMATE RADIO CIRCLE KILLER */
     div[role="radiogroup"] label > div:first-child:not([data-testid="stMarkdownContainer"]),
     div[role="radiogroup"] label div[data-baseweb="radio"],
     div[role="radiogroup"] label input {{ 
@@ -112,61 +115,40 @@ st.markdown(f"""
         position: absolute !important;
     }}
     
-    /* The uniform rectangular tile (LABEL) */
     div[role="radiogroup"] label {{
-        width: 100% !important; 
-        height: 100% !important;
-        margin: 0 !important; 
-        padding: 0 !important;
+        width: 100% !important; height: 100% !important;
+        margin: 0 !important; padding: 0 !important;
         cursor: pointer !important;
-        display: flex !important; 
-        align-items: center !important; 
-        justify-content: center !important;
+        display: flex !important; align-items: center !important; justify-content: center !important;
         background-color: {t_container} !important;
         border: 1px solid {t_border} !important;
-        border-radius: 0px !important; /* EXACT ZERO FOR FLAT WIN10 METRO */
+        border-radius: 0px !important; /* FLAT WIN10 METRO */
         box-sizing: border-box !important;
         transition: all 0.2s ease !important;
     }}
     
-    /* Ensure internal text containers stretch full width/height */
     div[role="radiogroup"] label div[data-testid="stMarkdownContainer"] {{
-        width: 100% !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
+        width: 100% !important; display: flex !important; align-items: center !important; justify-content: center !important;
     }}
     
-    /* Text styling */
     div[role="radiogroup"] label div[data-testid="stMarkdownContainer"] p {{
-        font-size: 0.85rem !important; 
-        font-weight: 600 !important;
-        color: {t_subtext} !important; 
-        margin: 0 !important; 
-        padding: 0 !important;
-        line-height: 1 !important;
-        text-align: center !important;
+        font-size: 0.85rem !important; font-weight: 600 !important;
+        color: {t_subtext} !important; margin: 0 !important; padding: 0 !important;
+        line-height: 1 !important; text-align: center !important;
     }}
 
-    /* Hover effect */
     div[role="radiogroup"] label:hover {{
         background-color: rgba(212, 175, 55, 0.08) !important; 
         border-color: rgba(212, 175, 55, 0.4) !important;
     }}
-    div[role="radiogroup"] label:hover div[data-testid="stMarkdownContainer"] p {{
-        color: {t_text} !important;
-    }}
+    div[role="radiogroup"] label:hover div[data-testid="stMarkdownContainer"] p {{ color: {t_text} !important; }}
 
-    /* Active Selection effect (Win10 Accent Style) */
     div[role="radiogroup"] label:has(input[aria-checked="true"]) {{
-        background-color: {t_bg} !important;
-        border-color: {t_border} !important; 
-        border-left: 4px solid #D4AF37 !important; /* Thick golden accent line */
+        background-color: {t_bg} !important; border-color: {t_border} !important; 
+        border-left: 4px solid #D4AF37 !important;
         box-shadow: inset 0 0 10px rgba(212, 175, 55, 0.05) !important;
     }}
-    div[role="radiogroup"] label:has(input[aria-checked="true"]) div[data-testid="stMarkdownContainer"] p {{
-        color: #D4AF37 !important;
-    }}
+    div[role="radiogroup"] label:has(input[aria-checked="true"]) div[data-testid="stMarkdownContainer"] p {{ color: #D4AF37 !important; }}
 
     /* =========================================
        3. COMPONENT STYLING
@@ -238,10 +220,6 @@ st.markdown(f"""
     .stChatMessage[data-testid="stChatMessageAvatar"] {{ background-color: #111 !important; border: 1px solid #D4AF37 !important; color: #D4AF37 !important; }}
     
     div[data-testid="stContainer"] > div > div > div {{ background-color: {t_container}; border-radius: 8px; }}
-    div[data-testid="stExpander"] {{ background-color: {t_container} !important; border: 1px solid {t_border} !important; border-radius: 8px !important; margin-bottom: 0px !important; }}
-    
-    button[data-baseweb="tab"] {{ color: {t_subtext} !important; font-weight: 600 !important; }}
-    button[aria-selected="true"] {{ color: #D4AF37 !important; border-bottom: 2px solid #D4AF37 !important; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -671,7 +649,9 @@ def main_app():
             param_col, mic_col = st.columns([0.85, 0.15], vertical_alignment="center")
             
             with param_col:
-                with st.expander("⚙️ Advanced Research Parameters & Grounding", expanded=False):
+                # REPLACED ST.EXPANDER WITH ST.POPOVER TO FIX THE "DOUBLE JUMP" GLITCH
+                with st.popover("⚙️ ADVANCED PARAMETERS & GROUNDING", use_container_width=True):
+                    st.markdown("#### Output Configuration")
                     c1, c2, c3 = st.columns(3)
                     with c1:
                         tone = st.selectbox("OUTPUT TONE", ["Casual", "Professional", "Academic"], index=2)
@@ -681,13 +661,14 @@ def main_app():
                         space = st.selectbox("AUTO-ARCHIVE TO", ["None", "Research", "Paper", "Study"])
                         
                     st.markdown("---")
+                    st.markdown("#### Database Grounding")
                     sc1, sc2, sc3 = st.columns([1, 1, 1])
                     with sc1:
                         st.markdown("<br>", unsafe_allow_html=True)
-                        enable_search = st.toggle("🌐 Web Grounding (Live Search)")
+                        enable_search = st.toggle("🌐 Live Web Search")
                     with sc2:
                         st.markdown("<br>", unsafe_allow_html=True)
-                        strict_citation = st.toggle("🛡️ Strict Citation Mode")
+                        strict_citation = st.toggle("🛡️ Strict Citations")
                     with sc3:
                         uploaded_pdf = st.file_uploader("📄 Upload PDF Context", type=["pdf"], key="res_pdf")
 
