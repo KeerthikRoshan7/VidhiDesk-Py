@@ -424,7 +424,8 @@ def get_gemini_stream(query, tone, difficulty, institution, pdf_text=None, audio
         contents.append(f"\n[DOCUMENT CONTEXT UPLOADED BY USER]:\n{pdf_text[:15000]}\n\n(Base your answer heavily on the document above if relevant).")
         
     if audio_bytes:
-        contents.append({"mime_type": "audio/wav", "data": audio_bytes})
+        # FIX: Use the SDK's types.Part.from_bytes method instead of a raw dictionary
+        contents.append(types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"))
         
     if query:
         contents.append(f"\nUSER QUERY: {query}")
