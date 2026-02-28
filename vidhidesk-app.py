@@ -36,9 +36,10 @@ if st.session_state.theme == "dark":
     t_input_bg = "#0F0F11"
     t_chat_bg = "rgba(255, 255, 255, 0.02)"
 else:
-    t_bg = "#F4F6F9"
+    # Slightly softer light background for better contrast
+    t_bg = "#F8FAFC" 
     t_container = "#FFFFFF"
-    t_text = "#1E293B"
+    t_text = "#0F172A"
     t_subtext = "#64748B"
     t_border = "rgba(212, 175, 55, 0.4)"
     t_input_bg = "#FFFFFF"
@@ -69,14 +70,29 @@ st.markdown(f"""
     }}
     h1, h2, h3, h4, h5, h6 {{ font-family: 'Cinzel', serif !important; font-weight: 600 !important; color: {t_text} !important; }}
     
+    /* FIX: LIGHT MODE BOTTOM CHAT CONTAINER OVERRIDE */
+    div[data-testid="stBottom"], div[data-testid="stBottomBlockContainer"] {{
+        background-color: {t_bg} !important; 
+        transition: background-color 0.4s ease;
+    }}
+    div[data-testid="stBottom"] > div {{
+        background-color: transparent !important;
+    }}
+
+    /* FIX: GHOST TEXT / PLACEHOLDER VISIBILITY */
+    input::placeholder, textarea::placeholder {{
+        color: {t_subtext} !important;
+        opacity: 0.65 !important;
+    }}
+    
     /* =========================================
-       2. SIDEBAR TABS HACK (Options to Tabs Grid)
+       2. TABS GRID - "WINDOWS 10 LOGO" METRO UI
        ========================================= */
-    /* Transform radiogroup into a 2x2 flex grid of tabs */
+    /* Transform radiogroup into a perfectly compressed 2x2 grid */
     div[role="radiogroup"] {{
         display: grid !important;
         grid-template-columns: repeat(2, 1fr) !important;
-        gap: 8px !important;
+        gap: 4px !important; /* Tight compression */
     }}
     
     /* HARD KILL the radio button circles */
@@ -84,44 +100,43 @@ st.markdown(f"""
         display: none !important; 
     }}
     
-    /* Style the labels to look like clickable full-width tab blocks */
     div[role="radiogroup"] label {{
         width: 100% !important; cursor: pointer !important;
         margin: 0 !important; padding: 0 !important;
-        background: transparent !important; border: none !important;
-        display: flex !important; justify-content: center !important;
-    }}
-    
-    /* Ensure the text container takes full width */
-    div[role="radiogroup"] div[data-testid="stMarkdownContainer"] {{
-        width: 100% !important;
-    }}
-    
-    /* Text styling inside the tab pills */
-    div[role="radiogroup"] div[data-testid="stMarkdownContainer"] p {{
-        font-size: 0.8rem !important; font-weight: 600 !important;
-        text-align: center !important; line-height: 1.2 !important;
-        color: {t_subtext} !important; padding: 12px 5px !important;
-        border-radius: 8px !important; transition: all 0.2s ease !important;
-        margin: 0 !important;
-        border: 1px solid {t_border} !important;
-        background-color: {t_bg} !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        width: 100% !important;
         display: block !important;
     }}
-
-    /* Hover effect for Tabs */
-    div[role="radiogroup"] label:hover div[data-testid="stMarkdownContainer"] p {{
-        background-color: rgba(212, 175, 55, 0.05) !important; color: {t_text} !important;
-        border-color: rgba(212, 175, 55, 0.4) !important;
+    
+    div[role="radiogroup"] div[data-testid="stMarkdownContainer"] {{
+        width: 100% !important;
+        height: 100% !important;
+    }}
+    
+    /* The Metro Tiles */
+    div[role="radiogroup"] div[data-testid="stMarkdownContainer"] p {{
+        font-size: 0.85rem !important; font-weight: 600 !important;
+        text-align: center !important; line-height: 1.3 !important;
+        color: {t_subtext} !important; 
+        height: 75px !important; /* Flawless square-ish proportion */
+        display: flex !important; align-items: center !important; justify-content: center !important;
+        border-radius: 3px !important; /* Sharp Win10 Corners */
+        margin: 0 !important;
+        border: 1px solid {t_border} !important;
+        background-color: {t_container} !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        transition: all 0.2s ease !important;
     }}
 
-    /* Active Selection effect (Tab Active State) */
+    div[role="radiogroup"] label:hover div[data-testid="stMarkdownContainer"] p {{
+        background-color: rgba(212, 175, 55, 0.08) !important; 
+        color: {t_text} !important;
+        border-color: rgba(212, 175, 55, 0.5) !important;
+    }}
+
     div[role="radiogroup"] label:has(input[aria-checked="true"]) div[data-testid="stMarkdownContainer"] p {{
-        background: linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.02) 100%) !important;
-        border: 1px solid #D4AF37 !important; color: #D4AF37 !important;
-        box-shadow: inset 0 0 10px rgba(212, 175, 55, 0.15), 0 2px 5px rgba(0,0,0,0.2) !important;
+        background: linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(212, 175, 55, 0.05) 100%) !important;
+        border: 2px solid #D4AF37 !important; /* Bold solid outline */
+        color: #D4AF37 !important;
+        box-shadow: inset 0 0 10px rgba(212, 175, 55, 0.15) !important;
     }}
 
     /* =========================================
@@ -585,7 +600,7 @@ def main_app():
         
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # --- NEW GRID TABS NAVIGATION ---
+        # --- NEW WINDOWS 10 STYLE TABS GRID NAVIGATION ---
         nav = st.radio("MODULES", ["⚖️ Research", "✍️ Drafting", "🌍 Translate", "📚 Vault"], label_visibility="collapsed")
         
         st.markdown("<br>", unsafe_allow_html=True)
