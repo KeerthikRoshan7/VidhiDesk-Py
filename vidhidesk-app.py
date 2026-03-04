@@ -13,7 +13,7 @@ from supabase import create_client, Client
 
 # --- 1. APP CONFIGURATION & SESSION INIT ---
 st.set_page_config(
-    page_title="VidhiDesk | Legal Intelligence",
+    page_title="VidhiDesk | AI-Powered Legal Research Assistant",
     page_icon="⚖️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -369,7 +369,7 @@ def login_page():
             </div>
             <h1 class='vidhi-title'>VIDHIDESK</h1>
             <div class='temple-divider'></div>
-            <div class='vidhi-subtitle' style='color: #D946EF;'>Intelligent Legal Infrastructure</div>
+            <div class='vidhi-subtitle' style='color: #D946EF;'>Your AI-Powered Legal Research Assistant</div>
         </div>
     """, unsafe_allow_html=True)
     
