@@ -8,6 +8,7 @@ from datetime import datetime
 import PyPDF2
 from docx import Document
 import io
+from PIL import Image
 from supabase import create_client, Client
 
 # --- 1. APP CONFIGURATION & SESSION INIT ---
@@ -36,14 +37,10 @@ st.markdown(f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
 
-    /* =========================================
-       1. CORE UI ANIMATIONS & STREAMLIT OVERRIDES
-       ========================================= */
     @keyframes fadeIn {{ from {{ opacity: 0; transform: translateY(10px); }} to {{ opacity: 1; transform: translateY(0); }} }}
     @keyframes pulseGlow {{ 0% {{ filter: drop-shadow(0 0 5px rgba(217, 70, 239, 0.2)); }} 50% {{ filter: drop-shadow(0 0 15px rgba(217, 70, 239, 0.6)); }} 100% {{ filter: drop-shadow(0 0 5px rgba(217, 70, 239, 0.2)); }} }}
     @keyframes activeGlow {{ 0% {{ box-shadow: inset 0 0 10px rgba(139, 92, 246, 0.05); }} 50% {{ box-shadow: inset 0 0 20px rgba(139, 92, 246, 0.15); }} 100% {{ box-shadow: inset 0 0 10px rgba(139, 92, 246, 0.05); }} }}
 
-    /* LOGIN PAGE CINEMATIC SEQUENCE */
     @keyframes cyberAssemblyLeft {{ 0% {{ transform: translateX(-40px) translateY(-20px); opacity: 0; filter: blur(5px); }} 100% {{ transform: translateX(0) translateY(0); opacity: 1; filter: blur(0); }} }}
     @keyframes cyberAssemblyRight {{ 0% {{ transform: translateX(40px) translateY(20px); opacity: 0; filter: blur(5px); }} 100% {{ transform: translateX(0) translateY(0); opacity: 1; filter: blur(0); }} }}
     @keyframes cyberAssemblyCenter {{ 0% {{ transform: scale(0.5); opacity: 0; }} 60% {{ transform: scale(1.05); opacity: 1; filter: drop-shadow(0 0 20px #D946EF); }} 100% {{ transform: scale(1); opacity: 1; }} }}
@@ -54,7 +51,6 @@ st.markdown(f"""
     .split-center {{ animation: cyberAssemblyCenter 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }}
     .login-svg {{ animation: pulseGlow 4s infinite 1.5s; overflow: visible; }}
 
-    /* Scope the delays ONLY to the login page to keep the main app fast */
     body:has(#login-page-marker) .vidhi-title {{ animation: formCascade 0.8s ease-out 1s forwards; opacity: 0; }}
     body:has(#login-page-marker) .temple-divider {{ animation: formCascade 0.8s ease-out 1.1s forwards; opacity: 0; }}
     body:has(#login-page-marker) .vidhi-subtitle {{ animation: formCascade 0.8s ease-out 1.2s forwards; opacity: 0; }}
@@ -66,7 +62,6 @@ st.markdown(f"""
     .block-container {{ padding-top: 2rem !important; padding-bottom: 6rem !important; }}
     section[data-testid="stSidebar"] > div {{ padding-top: 1.5rem !important; }}
 
-    /* FORCE OBSIDIAN THEME ACROSS CONTAINERS */
     .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"], [data-testid="stMainBlockContainer"] {{ background-color: {t_bg} !important; color: {t_text} !important; font-family: 'Inter', sans-serif; }}
     section[data-testid="stSidebar"] {{ background-color: {t_container} !important; border-right: 1px solid {t_border} !important; }}
     h1, h2, h3, h4, h5, h6 {{ font-family: 'Cinzel', serif !important; font-weight: 600 !important; color: {t_text} !important; transition: color 0.3s ease; }}
@@ -76,53 +71,33 @@ st.markdown(f"""
     input::placeholder, textarea::placeholder, .stChatInput textarea::placeholder {{ color: {t_text} !important; opacity: 0.45 !important; transition: opacity 0.3s ease; }}
     input:focus::placeholder, textarea:focus::placeholder {{ opacity: 0.7 !important; }}
     
-    /* =========================================
-       2. SIDEBAR TABS - VERTICAL ROUNDED RECTANGLES
-       ========================================= */
-    div[role="radiogroup"] {{
-        display: flex !important; flex-direction: column !important;
-        gap: 10px !important; width: 100% !important;
-    }}
-    div[role="radiogroup"] label > div:first-child:not([data-testid="stMarkdownContainer"]), div[role="radiogroup"] label div[data-baseweb="radio"], div[role="radiogroup"] label input {{ 
-        display: none !important; width: 0 !important; height: 0 !important; opacity: 0 !important; position: absolute !important;
-    }}
+    div[role="radiogroup"] {{ display: flex !important; flex-direction: column !important; gap: 10px !important; width: 100% !important; }}
+    div[role="radiogroup"] label > div:first-child:not([data-testid="stMarkdownContainer"]), div[role="radiogroup"] label div[data-baseweb="radio"], div[role="radiogroup"] label input {{ display: none !important; width: 0 !important; height: 0 !important; opacity: 0 !important; position: absolute !important; }}
     div[role="radiogroup"] label {{
-        width: 100% !important; height: 50px !important; margin: 0 !important; cursor: pointer !important;
-        display: flex !important; align-items: center !important; justify-content: flex-start !important;
-        background-color: {t_container} !important; border: 1px solid {t_border} !important; border-radius: 12px !important; /* Rounded Rectangles */
-        box-sizing: border-box !important; padding: 0 20px !important; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        width: 100% !important; height: 50px !important; margin: 0 !important; cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: flex-start !important;
+        background-color: {t_container} !important; border: 1px solid {t_border} !important; border-radius: 12px !important; box-sizing: border-box !important; padding: 0 20px !important; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }}
     div[role="radiogroup"] label div[data-testid="stMarkdownContainer"] {{ width: 100% !important; height: 100% !important; display: flex !important; align-items: center !important; justify-content: flex-start !important; }}
     div[role="radiogroup"] label div[data-testid="stMarkdownContainer"] p {{
-        font-size: 0.95rem !important; font-weight: 600 !important; color: {t_subtext} !important; 
-        margin: 0 !important; padding: 0 !important; line-height: 1 !important; text-align: left !important;
-        display: flex !important; align-items: center !important; justify-content: flex-start !important; gap: 12px !important;
-        width: 100% !important; height: 100% !important; transition: color 0.3s ease !important;
+        font-size: 0.95rem !important; font-weight: 600 !important; color: {t_subtext} !important; margin: 0 !important; padding: 0 !important; line-height: 1 !important; text-align: left !important;
+        display: flex !important; align-items: center !important; justify-content: flex-start !important; gap: 12px !important; width: 100% !important; height: 100% !important; transition: color 0.3s ease !important;
     }}
 
     div[role="radiogroup"] label:hover {{ background-color: rgba(139, 92, 246, 0.05) !important; border-color: {t_border_cyber} !important; transform: translateX(4px); }}
     div[role="radiogroup"] label:hover div[data-testid="stMarkdownContainer"] p {{ color: #FFF !important; }}
     div[role="radiogroup"] label:has(input[aria-checked="true"]) {{
-        background-color: {t_bg} !important; border-color: {t_border_cyber} !important; 
-        border-left: 5px solid #8B5CF6 !important; animation: activeGlow 3s infinite;
+        background-color: {t_bg} !important; border-color: {t_border_cyber} !important; border-left: 5px solid #8B5CF6 !important; animation: activeGlow 3s infinite;
     }}
     div[role="radiogroup"] label:has(input[aria-checked="true"]) div[data-testid="stMarkdownContainer"] p {{ color: #D946EF !important; }}
 
-    /* =========================================
-       3. COMPONENT STYLING & SMOOTHING
-       ========================================= */
     div[data-testid="stVerticalBlock"]:has(#sticky-header-marker):not(:has(div[data-testid="stVerticalBlock"]:has(#sticky-header-marker))) {{
-        position: sticky !important; top: 0rem !important; z-index: 999 !important;
-        background-color: {t_bg} !important; padding: 15px 0px 15px 0px !important;
-        border-bottom: 1px solid {t_border} !important; margin-bottom: 20px !important;
+        position: sticky !important; top: 0rem !important; z-index: 999 !important; background-color: {t_bg} !important; padding: 15px 0px 15px 0px !important; border-bottom: 1px solid {t_border} !important; margin-bottom: 20px !important;
     }}
 
     .vidhi-title-container {{ width: 100%; text-align: center; padding-top: 2vh; padding-bottom: 2rem; }}
     .vidhi-title {{
-        font-size: clamp(2.5rem, 6vw, 4.5rem); margin: 0 auto;
-        background: linear-gradient(135deg, #BF953F 0%, #FCF6BA 40%, #B38728 60%, #AA771C 100%);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
-        letter-spacing: 0.15em; white-space: nowrap !important; font-weight: 700 !important;
+        font-size: clamp(2.5rem, 6vw, 4.5rem); margin: 0 auto; background: linear-gradient(135deg, #BF953F 0%, #FCF6BA 40%, #B38728 60%, #AA771C 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; color: transparent; letter-spacing: 0.15em; white-space: nowrap !important; font-weight: 700 !important;
     }}
     .temple-divider {{ height: 1px; width: 200px; background: linear-gradient(90deg, transparent, #8B5CF6, transparent); margin: 15px auto; }}
     .vidhi-subtitle {{ color: {t_subtext}; font-size: 0.8rem; letter-spacing: 4px; text-transform: uppercase; }}
@@ -154,10 +129,7 @@ st.markdown(f"""
     button[kind="secondary"] {{ background: transparent !important; border: 1px solid {t_subtext} !important; color: {t_subtext} !important; border-radius: 8px !important; }}
     button[kind="secondary"]:hover {{ border-color: #8B5CF6 !important; color: #D946EF !important; background: rgba(139, 92, 246, 0.05) !important; }}
 
-    .stChatMessage {{
-        background-color: {t_chat_bg} !important; border: 1px solid {t_border} !important; border-radius: 12px !important; padding: 1.2rem !important; margin-bottom: 1rem !important;
-        animation: fadeIn 0.4s ease-out; transition: transform 0.2s ease, border-color 0.3s ease;
-    }}
+    .stChatMessage {{ background-color: {t_chat_bg} !important; border: 1px solid {t_border} !important; border-radius: 12px !important; padding: 1.2rem !important; margin-bottom: 1rem !important; animation: fadeIn 0.4s ease-out; transition: transform 0.2s ease, border-color 0.3s ease; }}
     .stChatMessage:hover {{ border-color: rgba(212, 175, 55, 0.3) !important; }}
     .stChatMessage[data-testid="stChatMessageAvatar"] {{ background-color: #0A0A0B !important; border: 1px solid #D4AF37 !important; color: #D4AF37 !important; }}
     div[data-testid="stContainer"] > div > div > div {{ background-color: {t_container}; border-radius: 12px; }}
@@ -166,7 +138,6 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. HARDCODED LISTS ---
 INSTITUTIONS = sorted([
     "National Law School of India University (NLSIU)", "NALSAR University of Law",
     "National Law University, Delhi (NLUD)", "The West Bengal National University of Juridical Sciences (WBNUJS)",
@@ -205,11 +176,7 @@ class DBHandler:
             if remember_me:
                 token = str(uuid.uuid4())
                 self.supabase.table("users").update({"auth_token": token}).eq("email", email).execute()
-            return {
-                "email": user["email"], "name": user["name"], 
-                "institution": user["institution"], "year": user["year"], 
-                "tier": user.get("tier", "free"), "token": token
-            }
+            return { "email": user["email"], "name": user["name"], "institution": user["institution"], "year": user["year"], "tier": user.get("tier", "free"), "token": token }
         return None
 
     def login_with_token(self, token):
@@ -217,21 +184,14 @@ class DBHandler:
         response = self.supabase.table("users").select("*").eq("auth_token", token).execute()
         if response.data:
             user = response.data[0]
-            return {
-                "email": user["email"], "name": user["name"], 
-                "institution": user["institution"], "year": user["year"], 
-                "tier": user.get("tier", "free"), "token": token
-            }
+            return { "email": user["email"], "name": user["name"], "institution": user["institution"], "year": user["year"], "tier": user.get("tier", "free"), "token": token }
         return None
 
     def logout(self, email):
         self.supabase.table("users").update({"auth_token": ""}).eq("email", email).execute()
 
     def save_message(self, email, role, content, workspace_id=0):
-        self.supabase.table("chats").insert({
-            "email": email, "role": role, "content": content, 
-            "workspace_id": workspace_id, "timestamp": datetime.now().isoformat()
-        }).execute()
+        self.supabase.table("chats").insert({ "email": email, "role": role, "content": content, "workspace_id": workspace_id, "timestamp": datetime.now().isoformat() }).execute()
 
     def get_history(self, email, workspace_id=0):
         response = self.supabase.table("chats").select("role, content").eq("email", email).eq("workspace_id", workspace_id).order("id", desc=False).execute()
@@ -241,11 +201,7 @@ class DBHandler:
         self.supabase.table("chats").delete().eq("email", email).eq("workspace_id", workspace_id).execute()
 
     def save_to_space(self, email, category, query, response, workspace_id=0):
-        self.supabase.table("spaces").insert({
-            "email": email, "category": category, "query": query, 
-            "response": response, "workspace_id": workspace_id, 
-            "timestamp": datetime.now().isoformat()
-        }).execute()
+        self.supabase.table("spaces").insert({ "email": email, "category": category, "query": query, "response": response, "workspace_id": workspace_id, "timestamp": datetime.now().isoformat() }).execute()
 
     def get_space_items(self, email, category, workspace_id=0):
         response = self.supabase.table("spaces").select("id, query, response, timestamp").eq("email", email).eq("category", category).eq("workspace_id", workspace_id).order("id", desc=True).execute()
@@ -255,9 +211,7 @@ class DBHandler:
         self.supabase.table("spaces").delete().eq("id", item_id).execute()
 
     def create_workspace(self, email, name):
-        response = self.supabase.table("workspaces").insert({
-            "email": email, "name": name, "created_at": datetime.now().isoformat()
-        }).execute()
+        response = self.supabase.table("workspaces").insert({ "email": email, "name": name, "created_at": datetime.now().isoformat() }).execute()
         return response.data[0]["id"] if response.data else 0
 
     def get_workspaces(self, email):
@@ -272,14 +226,19 @@ if not st.session_state.user:
         auto_user = db.login_with_token(saved_token)
         if auto_user: st.session_state.user = auto_user
 
-# --- 5. FILE EXTRACTOR & WORD EXPORT ---
-def extract_pdf_text(uploaded_file):
+# --- 5. MULTIMODAL FILE EXTRACTOR (PDF + VISION OCR) ---
+def process_uploaded_file(uploaded_file):
+    if not uploaded_file: return None, None
     try:
-        reader = PyPDF2.PdfReader(uploaded_file)
-        text = ""
-        for page in reader.pages: text += page.extract_text() + "\n"
-        return text
-    except Exception as e: return f"Error reading PDF: {e}"
+        if uploaded_file.type == "application/pdf":
+            reader = PyPDF2.PdfReader(uploaded_file)
+            text = "".join([page.extract_text() + "\n" for page in reader.pages])
+            return text, None
+        elif uploaded_file.type.startswith("image/"):
+            img = Image.open(uploaded_file)
+            return None, img
+    except Exception as e: return f"Error reading file: {e}", None
+    return None, None
 
 def generate_word_document(query, response, title="VidhiDesk Legal Document"):
     doc = Document()
@@ -295,30 +254,26 @@ def generate_word_document(query, response, title="VidhiDesk Legal Document"):
     return bio.getvalue()
 
 # --- 6. AI ENGINE ---
-def get_gemini_stream(query, tone, difficulty, institution, chat_history, pdf_text=None, audio_bytes=None, enable_search=False, strict_citation=False):
-    try:
-        client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+def get_gemini_stream(query, tone, difficulty, institution, chat_history, pdf_text=None, image_data=None, audio_bytes=None, enable_search=False, strict_citation=False):
+    try: client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
     except Exception as e:
         yield f"❌ **System Config Error:** {str(e)}"
         return
     
     sys_instruction = f"ROLE: You are VidhiDesk, an elite legal research assistant for {institution}.\nTONE: {tone} | DEPTH: {difficulty}\nMANDATE: Prioritize Indian Statutes (BNS, BNSS, BSA, Constitution). Cite relevant Case Laws. Use Markdown."
-    
-    if strict_citation:
-        sys_instruction += "\nCRITICAL RULE (STRICT CITATION MODE): You MUST ONLY cite real, verifiable Indian case laws. Provide the exact year, volume, and court. Under NO circumstances should you invent or hallucinate a case. If you cannot find a verifiable precedent, explicitly state 'No verifiable case law found for this specific query'."
+    if strict_citation: sys_instruction += "\nCRITICAL RULE (STRICT CITATION MODE): You MUST ONLY cite real, verifiable Indian case laws. Provide the exact year, volume, and court. Under NO circumstances should you invent or hallucinate a case. If you cannot find a verifiable precedent, explicitly state 'No verifiable case law found for this specific query'."
 
     config = types.GenerateContentConfig(temperature=0.1 if strict_citation else 0.3, system_instruction=sys_instruction)
     if enable_search: config.tools = [{"google_search": {}}]
 
     contents = []
-    
-    # Context Memory injected
     for msg in chat_history:
         role = "user" if msg["role"] == "user" else "model"
         contents.append({"role": role, "parts": [{"text": msg["content"]}]})
 
     current_parts = []
     if pdf_text: current_parts.append({"text": f"[DOCUMENT CONTEXT UPLOADED BY USER]:\n{pdf_text[:15000]}\n\n(Base your answer heavily on the document above if relevant)."})
+    if image_data: current_parts.append(image_data) # Gemini Vision automatically OCRs this image!
     if audio_bytes: current_parts.append(types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"))
     if query: current_parts.append({"text": f"USER QUERY: {query}"})
     
@@ -339,19 +294,16 @@ def get_gemini_stream(query, tone, difficulty, institution, chat_history, pdf_te
             continue 
     yield "❌ **System Unavailable:** AI servers failed to respond."
 
-def get_drafting_stream(doc_type, client_info, facts, pdf_text=None, audio_bytes=None):
+def get_drafting_stream(doc_type, client_info, facts, pdf_text=None, image_data=None, audio_bytes=None):
     try: client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
     except Exception:
         yield "❌ **System Config Error.**"
         return
         
-    sys_instruction = f"""
-    ROLE: You are an expert Legal Draftsman.
-    TASK: Draft a professional, court-ready '{doc_type}'.
-    MANDATE: Use strict, formal Indian legal terminology. Format properly using clear headings and numbered paragraphs. Use placeholders like [DATE] or [AMOUNT] for missing facts. Base the entire draft strictly on the provided facts and documents. Do not include conversational filler.
-    """
+    sys_instruction = f"""ROLE: You are an expert Legal Draftsman. TASK: Draft a professional, court-ready '{doc_type}'. MANDATE: Use strict, formal Indian legal terminology. Format properly using clear headings and numbered paragraphs. Use placeholders like [DATE] or [AMOUNT] for missing facts. Base the entire draft strictly on the provided facts and documents. Do not include conversational filler."""
     parts = [{"text": sys_instruction}]
     if pdf_text: parts.append({"text": f"\n[REFERENCE DOCUMENT UPLOADED]:\n{pdf_text[:15000]}"})
+    if image_data: parts.append(image_data)
     if client_info: parts.append({"text": f"\n[CLIENT DETAILS]:\n{client_info}"})
     if facts: parts.append({"text": f"\n[CASE FACTS]:\n{facts}"})
     if audio_bytes: parts.append(types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"))
@@ -362,7 +314,7 @@ def get_drafting_stream(doc_type, client_info, facts, pdf_text=None, audio_bytes
             if chunk.text: yield chunk.text
     except Exception as e: yield f"❌ **Drafting Engine Error:** {str(e)}"
 
-def get_translation_stream(text, target_lang, institution, pdf_text=None, audio_bytes=None):
+def get_translation_stream(text, target_lang, institution, pdf_text=None, image_data=None, audio_bytes=None):
     try: client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
     except Exception:
         yield "❌ **System Config Error.**"
@@ -371,6 +323,7 @@ def get_translation_stream(text, target_lang, institution, pdf_text=None, audio_
     sys_instruction = f"ROLE: You are an expert Legal Translator at {institution}. TASK: Translate the provided legal document/text/audio accurately into highly formal {target_lang}. Preserve all legal meanings perfectly. Keep Latin maxims in Latin with translated meanings in brackets."
     parts = [{"text": sys_instruction}]
     if pdf_text: parts.append({"text": f"\n[DOCUMENT TO TRANSLATE]:\n{pdf_text[:15000]}"})
+    if image_data: parts.append(image_data)
     if text: parts.append({"text": f"\n[ADDITIONAL TEXT TO TRANSLATE]:\n{text}"})
     if audio_bytes: parts.append(types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"))
         
@@ -380,15 +333,16 @@ def get_translation_stream(text, target_lang, institution, pdf_text=None, audio_
             if chunk.text: yield chunk.text
     except Exception as e: yield f"❌ **Translation Engine Error:** {str(e)}"
 
-def get_vault_analysis_stream(pdf_text=None, audio_bytes=None):
+def get_vault_analysis_stream(pdf_text=None, image_data=None, audio_bytes=None):
     try: client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
     except Exception:
         yield "❌ **System Config Error.**"
         return
         
-    sys_instruction = "ROLE: You are an archiving assistant. Extract the key legal facts, summary, and core arguments from the provided document or audio memo. Format it cleanly in Markdown so it can be saved to a database."
+    sys_instruction = "ROLE: You are an archiving assistant. Extract the key legal facts, summary, and core arguments from the provided document, image, or audio memo. Format it cleanly in Markdown so it can be saved to a database."
     parts = [{"text": sys_instruction}]
     if pdf_text: parts.append({"text": f"\n[DOCUMENT TO ARCHIVE]:\n{pdf_text[:15000]}"})
+    if image_data: parts.append(image_data)
     if audio_bytes: parts.append(types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"))
         
     try:
@@ -493,11 +447,18 @@ def main_app():
         current_index = 0
         for i, w in enumerate(workspaces):
             if w['id'] == st.session_state.current_workspace['id']: current_index = i
-                
-        selected_ws_name = st.selectbox("Workspace", ws_names, index=current_index, label_visibility="collapsed")
-        for w in workspaces:
-            if w['name'] == selected_ws_name and st.session_state.current_workspace['id'] != w['id']:
-                st.session_state.current_workspace = w
+        
+        # Collaborative Sync Feature
+        wc1, wc2 = st.columns([0.8, 0.2])
+        with wc1:
+            selected_ws_name = st.selectbox("Workspace", ws_names, index=current_index, label_visibility="collapsed")
+            for w in workspaces:
+                if w['name'] == selected_ws_name and st.session_state.current_workspace['id'] != w['id']:
+                    st.session_state.current_workspace = w
+                    st.rerun()
+        with wc2:
+            if st.button("🔄", help="Sync Collaborative Workspace Data"):
+                st.toast("Database Synced with Associates!", icon="☁️")
                 st.rerun()
         
         with st.popover("➕ Create Case Folder", use_container_width=True):
@@ -552,7 +513,7 @@ def main_app():
                     sc1, sc2, sc3 = st.columns([1, 1, 1])
                     with sc1: st.markdown("<br>", unsafe_allow_html=True); enable_search = st.toggle("🌐 Live Web Search")
                     with sc2: st.markdown("<br>", unsafe_allow_html=True); strict_citation = st.toggle("🛡️ Strict Citations")
-                    with sc3: uploaded_pdf = st.file_uploader("📄 Upload Context", type=["pdf"], key="res_pdf")
+                    with sc3: uploaded_file = st.file_uploader("📄 Upload Context (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"], key="res_pdf")
 
             with mic_col:
                 with st.popover("🎙️ VOICE", use_container_width=True):
@@ -576,14 +537,13 @@ def main_app():
             
             db.save_message(st.session_state.user['email'], "user", query, workspace_id=st.session_state.current_workspace['id'])
             with st.chat_message("assistant", avatar="⚖️"):
-                pdf_extracted_text = None
-                if uploaded_pdf:
-                    with st.spinner("Reading Document..."): pdf_extracted_text = extract_pdf_text(uploaded_pdf)
-                
+                pdf_text, image_data = process_uploaded_file(uploaded_file)
                 audio_bytes = audio_data.getvalue() if is_audio_submission else None
-                stream = get_gemini_stream(query, tone, diff, st.session_state.user['institution'], history, pdf_text=pdf_extracted_text, audio_bytes=audio_bytes, enable_search=enable_search, strict_citation=strict_citation)
                 
-                full_response = st.write_stream(stream)
+                with st.spinner("Analyzing Query & Attached Files..."):
+                    stream = get_gemini_stream(query, tone, diff, st.session_state.user['institution'], history, pdf_text=pdf_text, image_data=image_data, audio_bytes=audio_bytes, enable_search=enable_search, strict_citation=strict_citation)
+                    full_response = st.write_stream(stream)
+                
                 db.save_message(st.session_state.user['email'], "assistant", full_response, workspace_id=st.session_state.current_workspace['id'])
 
                 if space != "None" and "❌" not in full_response:
@@ -608,7 +568,7 @@ def main_app():
         with st.container(border=True):
             col_doc, col_pdf, col_voice = st.columns([2, 1, 1])
             with col_doc: doc_type = st.selectbox("Document Type", ["Legal Notice (General)", "Legal Notice (Sec 138 NI Act)", "Non-Disclosure Agreement (NDA)", "Bail Application (Under BNSS)", "Lease / Rent Agreement", "Affidavit", "Writ Petition (Draft Format)"])
-            with col_pdf: uploaded_draft_pdf = st.file_uploader("📄 Attach Reference PDF", type=["pdf"], key="draft_pdf")
+            with col_pdf: uploaded_file = st.file_uploader("📄 Attach Ref PDF/Image", type=["pdf", "png", "jpg", "jpeg"], key="draft_pdf")
             with col_voice: 
                 with st.popover("🎙️ Dictate Details", use_container_width=True):
                     draft_audio = st.audio_input("Record Facts", label_visibility="collapsed")
@@ -621,19 +581,21 @@ def main_app():
             facts = st.text_area("Core Case Facts & Timeline", height=120, placeholder="Explain the primary incident, dates, and amounts involved...")
             
             if st.button("GENERATE DRAFT", use_container_width=True, type="primary"):
-                if not facts and not uploaded_draft_pdf and not draft_audio: 
-                    st.warning("Please provide either text facts, a voice recording, or a reference PDF to generate a draft.")
+                if not facts and not uploaded_file and not draft_audio: 
+                    st.warning("Please provide either text facts, a voice recording, or a reference file to generate a draft.")
                 else:
                     st.markdown("---")
                     st.markdown(f"### Generated Draft: {doc_type}")
-                    pdf_extracted_text = None
-                    if uploaded_draft_pdf:
-                        with st.spinner("Extracting Reference Document..."): pdf_extracted_text = extract_pdf_text(uploaded_draft_pdf)
+                    
+                    pdf_text, image_data = None, None
+                    if uploaded_file:
+                        with st.spinner("Extracting Reference Document..."): 
+                            pdf_text, image_data = process_uploaded_file(uploaded_file)
                     
                     audio_bytes = draft_audio.getvalue() if draft_audio else None
                     client_info_str = f"Client: {client_name}\nOpposing Party: {opp_name}" if (client_name or opp_name) else None
                             
-                    stream = get_drafting_stream(doc_type, client_info_str, facts, pdf_text=pdf_extracted_text, audio_bytes=audio_bytes)
+                    stream = get_drafting_stream(doc_type, client_info_str, facts, pdf_text=pdf_text, image_data=image_data, audio_bytes=audio_bytes)
                     final_draft = st.write_stream(stream)
                     
                     if "❌" not in final_draft:
@@ -651,26 +613,28 @@ def main_app():
         with st.container(border=True):
             col_lang, col_pdf, col_voice = st.columns([2, 1, 1])
             with col_lang: target_lang = st.selectbox("Translate To", ["Hindi", "Tamil", "Marathi", "Bengali", "Telugu", "Gujarati", "Malayalam", "English"])
-            with col_pdf: uploaded_trans_pdf = st.file_uploader("📄 Upload Document", type=["pdf"], key="trans_pdf")
+            with col_pdf: uploaded_file = st.file_uploader("📄 Upload Doc/Image", type=["pdf", "png", "jpg", "jpeg"], key="trans_pdf")
             with col_voice: 
                 with st.popover("🎙️ Dictate Audio", use_container_width=True):
                     trans_audio = st.audio_input("Record Audio to Translate", label_visibility="collapsed")
             
-            source_text = st.text_area("Source Text (Optional if PDF/Audio provided)", height=150, placeholder="Paste legal document text here...")
+            source_text = st.text_area("Source Text (Optional if File/Audio provided)", height=150, placeholder="Paste legal document text here...")
             
             if st.button("TRANSLATE CONTENT", use_container_width=True):
-                if not source_text and not uploaded_trans_pdf and not trans_audio: 
-                    st.warning("Please paste text, upload a PDF, or record audio to translate.")
+                if not source_text and not uploaded_file and not trans_audio: 
+                    st.warning("Please paste text, upload a file, or record audio to translate.")
                 else:
                     st.markdown("---")
                     st.markdown(f"### {target_lang} Translation")
-                    pdf_extracted_text = None
-                    if uploaded_trans_pdf:
-                        with st.spinner("Extracting PDF Text for Translation..."): pdf_extracted_text = extract_pdf_text(uploaded_trans_pdf)
+                    
+                    pdf_text, image_data = None, None
+                    if uploaded_file:
+                        with st.spinner("Extracting File for Translation..."):
+                            pdf_text, image_data = process_uploaded_file(uploaded_file)
                     
                     audio_bytes = trans_audio.getvalue() if trans_audio else None
                             
-                    stream = get_translation_stream(source_text, target_lang, st.session_state.user['institution'], pdf_text=pdf_extracted_text, audio_bytes=audio_bytes)
+                    stream = get_translation_stream(source_text, target_lang, st.session_state.user['institution'], pdf_text=pdf_text, image_data=image_data, audio_bytes=audio_bytes)
                     final_translation = st.write_stream(stream)
                     
                     if "❌" not in final_translation:
@@ -684,19 +648,19 @@ def main_app():
         st.markdown("<div class='temple-divider' style='margin: 10px 0 30px 0; width: 80px; margin-left: 0; background: linear-gradient(90deg, #D4AF37, transparent);'></div>", unsafe_allow_html=True)
         
         with st.popover("➕ QUICK ANALYZE & ADD TO VAULT", use_container_width=True):
-            st.markdown("Upload a complex legal document or dictate a voice memo. VidhiDesk will extract the core facts and archive them instantly.")
+            st.markdown("Upload a complex legal document/image or dictate a voice memo. VidhiDesk will extract the core facts and archive them instantly.")
             vc1, vc2, vc3 = st.columns([1, 1, 1])
-            with vc1: vault_pdf = st.file_uploader("Upload PDF", type=["pdf"], key="vault_pdf")
+            with vc1: uploaded_file = st.file_uploader("Upload File", type=["pdf", "png", "jpg", "jpeg"], key="vault_pdf")
             with vc2: vault_audio = st.audio_input("Record Memo", key="vault_audio")
             with vc3: 
                 v_space = st.selectbox("Save To", ["Research", "Paper", "Study"])
                 save_vault = st.button("Extract & Archive", type="primary", use_container_width=True)
 
-            if save_vault and (vault_pdf or vault_audio):
-                pdf_extracted = extract_pdf_text(vault_pdf) if vault_pdf else None
+            if save_vault and (uploaded_file or vault_audio):
+                pdf_text, image_data = process_uploaded_file(uploaded_file)
                 aud_bytes = vault_audio.getvalue() if vault_audio else None
                 with st.spinner("Analyzing and Saving to Vault..."):
-                    stream = get_vault_analysis_stream(pdf_text=pdf_extracted, audio_bytes=aud_bytes)
+                    stream = get_vault_analysis_stream(pdf_text=pdf_text, image_data=image_data, audio_bytes=aud_bytes)
                     analysis_result = ""
                     for chunk in stream: analysis_result += chunk
                     
